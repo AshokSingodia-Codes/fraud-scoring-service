@@ -11,6 +11,16 @@ An end-to-end, production-grade fraud scoring engine built on the Kaggle IEEE-CI
 
 ---
 
+## 🔗 Live Deployments
+
+- **Backend API (Render Web Service):** [https://fraud-scoring-service.onrender.com](https://fraud-scoring-service.onrender.com)
+  - API Health Check: `https://fraud-scoring-service.onrender.com/health`
+  - Interactive Swagger Docs: `https://fraud-scoring-service.onrender.com/docs`
+- **Frontend App (Vercel Dashboard):** [https://fraud-scoring-service.vercel.app](https://fraud-scoring-service.vercel.app)
+- **GitHub Repository:** [https://github.com/AshokSingodia-Codes/fraud-scoring-service](https://github.com/AshokSingodia-Codes/fraud-scoring-service)
+
+---
+
 ## 🌟 Architecture Overview
 
 ```mermaid
@@ -29,28 +39,39 @@ flowchart TD
 
 ---
 
-## 📊 Performance & Benchmark Summary
+## 📊 Comprehensive Model Evaluation & Performance
 
-All metrics are derived directly from serialized JSON reports in `reports/` produced on a strict time-held-out test set.
+All evaluation metrics are computed on a strict **time-series held-out test set** (the latest 20% of transactions by `TransactionDT`) to evaluate true temporal generalization in production conditions without data leakage.
 
-### Model Evaluation (Held-Out Time Test Set)
-| Metric | Value | Baseline (Logistic Reg) |
-|---|---|---|
-| **ROC-AUC** | **0.8841** | 0.8250 |
-| **PR-AUC** | **0.4633** | 0.2540 |
-| **Brier Score (Post-Calibration)** | **0.0152** | 0.0420 |
-| **Expected Cost Reduction** | **68.4% reduction** vs Approve-All | -- |
-
-### Decision Thresholds
-- **Review Threshold (\(t_{\text{review}}\)):** `0.0496` (Minimizes total expected business loss = FP manual review cost + FN fraud loss)
-- **Block Threshold (\(t_{\text{block}}\)):** `0.7692` (Achieves \(\ge 90\%\) precision on validation set)
-
-### Load Test Benchmarks (Single Score & Batch)
-| Profile | Throughput | p50 Latency | p95 Latency | Error Rate |
+### 1. Classification & Calibration Metrics (Exact Test Set Results)
+| Metric | Tuned LightGBM | Default LightGBM | Logistic Regression Baseline | Dummy Baseline |
 |---|---|---|---|---|
-| **Single Score (no SHAP)** | 4.6 req/s | 205.59 ms | 255.86 ms | **0.0%** |
-| **Single Score (with SHAP)** | 3.4 req/s | 287.35 ms | 324.16 ms | **0.0%** |
-| **Batch Scoring (10 items/batch)** | 4.0 tx/s | 2248.50 ms | 2286.52 ms | **0.0%** |
+| **ROC-AUC** | **0.9105** | 0.9014 | 0.8362 | 0.5000 |
+| **PR-AUC** | **0.5497** | 0.5303 | 0.3806 | 0.0343 |
+| **Recall @ Precision = 50%** | **54.49%** | 51.55% | 33.83% | 0.03% |
+| **Recall @ Precision = 80%** | **32.79%** | 33.00% | 16.96% | 0.00% |
+| **Recall @ Top 1% Alerts** | **25.53%** | 25.38% | 20.61% | 1.12% |
+| **Recall @ Top 5% Alerts** | **59.68%** | 58.78% | 46.15% | 6.15% |
+| **Brier Score (Calibration)** | **0.0221** | 0.0219 | 0.1255 | 0.0332 |
+| **Expected Calibration Error (ECE)** | **0.0090** | 0.0039 | 0.2691 | 0.0008 |
+| **Score Population Stability Index (PSI)** | **0.0016** | -- | -- | -- |
+
+### 2. Cost Matrix & Optimal Decision Thresholds
+Decision policy boundaries are derived by optimizing total expected business cost under asymmetric financial penalties ($C_{\text{FP}} = \$10.00$ manual review cost, $C_{\text{FN}} = \text{Transaction Amount}$ chargeback loss):
+
+| Policy Action | Threshold Range | Operational Impact & Characteristics |
+|---|---|---|
+| **APPROVE** | Score $< 0.0496$ | Fraud probability negligible; zero manual review friction. |
+| **MANUAL REVIEW** | $0.0496 \le \text{Score} < 0.7692$ | Optimal review threshold ($t_{\text{review}} = 0.0496$) minimizing business financial loss. |
+| **BLOCK** | Score $\ge 0.7692$ | High-precision automated block threshold ($t_{\text{block}} = 0.7692$) achieving $\ge 90\%$ precision. |
+
+### 3. Load Test Benchmarks (Real Measured Latencies)
+| Profile | Concurrency | Throughput | p50 Latency | p95 Latency | p99 Latency | Error Rate |
+|---|---|---|---|---|---|---|
+| **Single Score (no SHAP)** | 1 | 4.6 req/s | 205.59 ms | 255.86 ms | 268.52 ms | **0.0%** |
+| **Single Score (with SHAP)** | 1 | 3.4 req/s | 287.35 ms | 324.16 ms | 328.91 ms | **0.0%** |
+| **Concurrency Load (100 Users)** | 100 | 3.4 req/s | 289.68 ms | 329.15 ms | 331.11 ms | **0.0%** |
+| **Batch Scoring (10 items/batch)** | 1 | 4.0 tx/s | 2248.50 ms | 2286.52 ms | 2292.27 ms | **0.0%** |
 
 ---
 
