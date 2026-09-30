@@ -1,0 +1,28 @@
+project:
+  name: "fraud-scoring-service"
+  seed: 42
+  version: "0.1.0"
+
+paths:
+  raw_data_dir: "data/raw"
+  interim_data_dir: "data/interim"
+  processed_data_dir: "data/processed"
+  models_dir: "models"
+  reports_dir: "reports"
+  figures_dir: "reports/figures"
+
+data:
+  train_split: 0.70
+  val_split: 0.15
+  test_split: 0.15
+  target_col: "isFraud"
+  time_col: "TransactionDT"
+  id_col: "TransactionID"
+
+cost:
+  fp_review_cost: 10.0
+  fn_cost_type: "transaction_amt"
+
+thresholds:
+  t_review: 0.15
+  t_block: 0.85

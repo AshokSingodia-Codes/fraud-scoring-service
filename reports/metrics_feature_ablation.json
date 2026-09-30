@@ -1,0 +1,22 @@
+{
+  "raw_features_lgbm": {
+    "pr_auc": 0.530273
+  },
+  "engineered_features_lgbm": {
+    "pr_auc": 0.551162,
+    "roc_auc": 0.906284,
+    "recall_at_top1pct": 0.261999,
+    "gain_over_raw": 0.020889000000000046
+  },
+  "all_metrics": {
+    "pr_auc": 0.551162,
+    "roc_auc": 0.906284,
+    "recall_at_p50": 0.535174,
+    "recall_at_p80": 0.35503,
+    "recall_at_top1pct": 0.261999,
+    "recall_at_top5pct": 0.587114,
+    "brier_score": 0.021401,
+    "ece": 0.001788,
+    "expected_cost": 356425.52
+  }
+}

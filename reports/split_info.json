@@ -1,0 +1,29 @@
+{
+  "train": {
+    "count": 413378,
+    "share": 0.7,
+    "fraud_rate": 0.035169,
+    "min_dt": 86400,
+    "max_dt": 10437996,
+    "min_day": 1,
+    "max_day": 120
+  },
+  "validation": {
+    "count": 88581,
+    "share": 0.15,
+    "fraud_rate": 0.034341,
+    "min_dt": 10438003,
+    "max_dt": 13151840,
+    "min_day": 120,
+    "max_day": 152
+  },
+  "test": {
+    "count": 88581,
+    "share": 0.15,
+    "fraud_rate": 0.034804,
+    "min_dt": 13151880,
+    "max_dt": 15811131,
+    "min_day": 152,
+    "max_day": 182
+  }
+}

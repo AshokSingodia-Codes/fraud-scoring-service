@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FraudShield AI - Real-Time Fraud Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --border: rgba(255, 255, 255, 0.1);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --approve: #22c55e;
+      --review: #f59e0b;
+      --block: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 2rem 1rem; min-height: 100vh; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 2rem; }
+    h1 { font-size: 2.2rem; font-weight: 700; background: linear-gradient(90deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    p.subtitle { color: var(--text-muted); margin-top: 0.5rem; font-size: 1rem; }
+
+    .notice { background: rgba(99, 102, 241, 0.1); border: 1px solid var(--primary); color: #c7d2fe; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; text-align: center; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+    .card { background: var(--card-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .card h2 { font-size: 1.2rem; margin-bottom: 1rem; color: #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+    input, select { width: 100%; background: #1e293b; border: 1px solid #334155; color: #fff; padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.95rem; }
+    input:focus, select:focus { border-color: var(--primary); outline: none; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    button { width: 100%; background: linear-gradient(90deg, var(--primary), #a855f7); border: none; color: white; padding: 0.8rem; font-size: 1rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: opacity 0.2s; margin-top: 1rem; }
+    button:hover { opacity: 0.9; }
+
+    .preset-btns { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .preset-btn { background: #334155; border: none; padding: 0.4rem 0.75rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; color: #cbd5e1; flex: 1; }
+    .preset-btn:hover { background: #475569; }
+
+    /* Results */
+    .metric-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; background: #0f172a; padding: 1rem; border-radius: 8px; }
+    .prob-val { font-size: 1.8rem; font-weight: 700; color: #fff; }
+    .badge { padding: 0.4rem 1rem; border-radius: 20px; font-weight: 700; font-size: 0.95rem; text-transform: uppercase; }
+    .badge-approve { background: rgba(34, 197, 94, 0.2); color: var(--approve); border: 1px solid var(--approve); }
+    .badge-review { background: rgba(245, 158, 11, 0.2); color: var(--review); border: 1px solid var(--review); }
+    .badge-block { background: rgba(239, 68, 68, 0.2); color: var(--block); border: 1px solid var(--block); }
+
+    .progress-bar-bg { background: #334155; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 1.5rem; }
+    .progress-bar-fill { height: 100%; width: 0%; transition: width 0.5s ease-in-out; background: linear-gradient(90deg, var(--approve), var(--review), var(--block)); }
+
+    .reason-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; padding: 0.5rem 0; border-bottom: 1px solid #334155; }
+    .reason-label { font-weight: 600; }
+    .reason-val.inc { color: var(--block); }
+    .reason-val.low { color: var(--approve); }
+
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🛡️ FraudShield AI</h1>
+      <p class="subtitle">Real-Time IEEE-CIS Fraud Scoring & Explanation Service</p>
+    </header>
+
+    <div class="notice">
+      ⚠️ <b>Demo Mode:</b> Model predictions and SHAP reason codes served by calibrated LightGBM backend API.
+    </div>
+
+    <div class="grid">
+      <!-- Input Form Card -->
+      <div class="card">
+        <h2>
+          <span>Transaction Input</span>
+          <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">
+            <span class="status-dot"></span>Backend: <input id="apiUrl" value="http://localhost:8000" style="width: 140px; display: inline; padding: 2px 6px; font-size: 0.75rem;">
+          </span>
+        </h2>
+
+        <div class="preset-btns">
+          <button class="preset-btn" onclick="loadPreset('low')">Low Risk Preset</button>
+          <button class="preset-btn" onclick="loadPreset('medium')">Review Preset</button>
+          <button class="preset-btn" onclick="loadPreset('high')">High Risk Preset</button>
+        </div>
+
+        <form id="scoreForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Transaction ID</label>
+              <input id="tx_id" value="tx_web_001" required>
+            </div>
+            <div class="form-group">
+              <label>Amount ($)</label>
+              <input type="number" step="0.01" id="tx_amt" value="45.00" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Product Code</label>
+              <select id="prod_cd">
+                <option value="W">W (Web)</option>
+                <option value="C">C (Cross-border)</option>
+                <option value="R">R (Risk category)</option>
+                <option value="H">H (High-value)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Card Issuer (card1)</label>
+              <input type="number" id="card1" value="1000">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Purchaser Email Domain</label>
+              <input id="p_email" value="gmail.com">
+            </div>
+            <div class="form-group">
+              <label>Recipient Email Domain</label>
+              <input id="r_email" value="gmail.com">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Device Type</label>
+              <select id="dev_type">
+                <option value="desktop">Desktop</option>
+                <option value="mobile">Mobile</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Device Info</label>
+              <input id="dev_info" value="Windows">
+            </div>
+          </div>
+
+          <button type="button" onclick="scoreTransaction()">🛡️ Score Transaction Now</button>
+        </form>
+      </div>
+
+      <!-- Results Card -->
+      <div class="card">
+        <h2>Scoring Engine Output</h2>
+
+        <div class="metric-box">
+          <div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.2rem;">Fraud Probability</div>
+            <div class="prob-val" id="probVal">0.0000</div>
+          </div>
+          <div id="decisionBadge" class="badge badge-approve">APPROVE</div>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;" id="metaInfo">
+          Risk Band: <b id="riskBandVal" style="color: #fff;">Low</b> | Latency: <b id="latencyVal" style="color: #fff;">-- ms</b>
+        </div>
+
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: #cbd5e1;">Top 5 SHAP Reason Codes</h3>
+        <div id="reasonsContainer">
+          <div style="font-size: 0.85rem; color: var(--text-muted);">Click "Score Transaction" to evaluate transaction risk.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PRESETS = {
+      low: { tx_id: "tx_low_01", tx_amt: 34.50, prod_cd: "W", card1: 1000, p_email: "gmail.com", r_email: "gmail.com", dev_type: "desktop", dev_info: "Windows" },
+      medium: { tx_id: "tx_med_01", tx_amt: 320.00, prod_cd: "H", card1: 7500, p_email: "hotmail.com", r_email: "hotmail.com", dev_type: "desktop", dev_info: "MacOS" },
+      high: { tx_id: "tx_high_01", tx_amt: 1850.00, prod_cd: "C", card1: 19800, p_email: "anonymous.com", r_email: "yahoo.com", dev_type: "mobile", dev_info: "iOS Device" }
+    };
+
+    function loadPreset(type) {
+      const p = PRESETS[type];
+      document.getElementById('tx_id').value = p.tx_id;
+      document.getElementById('tx_amt').value = p.tx_amt;
+      document.getElementById('prod_cd').value = p.prod_cd;
+      document.getElementById('card1').value = p.card1;
+      document.getElementById('p_email').value = p.p_email;
+      document.getElementById('r_email').value = p.r_email;
+      document.getElementById('dev_type').value = p.dev_type;
+      document.getElementById('dev_info').value = p.dev_info;
+      scoreTransaction();
+    }
+
+    async function scoreTransaction() {
+      const baseUrl = document.getElementById('apiUrl').value.trim();
+      const payload = {
+        transaction_id: document.getElementById('tx_id').value,
+        TransactionDT: 86400,
+        TransactionAmt: parseFloat(document.getElementById('tx_amt').value),
+        ProductCD: document.getElementById('prod_cd').value,
+        card1: parseInt(document.getElementById('card1').value),
+        P_emaildomain: document.getElementById('p_email').value,
+        R_emaildomain: document.getElementById('r_email').value,
+        DeviceType: document.getElementById('dev_type').value,
+        DeviceInfo: document.getElementById('dev_info').value
+      };
+
+      try {
+        const t0 = performance.now();
+        const res = await fetch(`${baseUrl}/v1/score?explain=true`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'demo-api-key-12345'
+          },
+          body: JSON.stringify(payload)
+        });
+        const elapsed = Math.round(performance.now() - t0);
+
+        if (!res.ok) {
+          alert(`API Error ${res.status}: ${await res.text()}`);
+          return;
+        }
+
+        const data = await res.json();
+        const prob = data.fraud_probability;
+        const pct = (prob * 100).toFixed(2);
+
+        document.getElementById('probVal').innerText = `${prob.toFixed(4)} (${pct}%)`;
+        document.getElementById('progressFill').style.width = `${Math.min(pct, 100)}%`;
+        document.getElementById('riskBandVal').innerText = data.risk_band;
+        document.getElementById('latencyVal').innerText = `${elapsed} ms`;
+
+        const badge = document.getElementById('decisionBadge');
+        if (data.decision === 'approve') {
+          badge.className = 'badge badge-approve';
+          badge.innerText = 'APPROVE';
+        } else if (data.decision === 'review') {
+          badge.className = 'badge badge-review';
+          badge.innerText = 'MANUAL REVIEW';
+        } else {
+          badge.className = 'badge badge-block';
+          badge.innerText = 'BLOCK';
+        }
+
+        const container = document.getElementById('reasonsContainer');
+        container.innerHTML = '';
+        (data.reasons || []).forEach(r => {
+          const div = document.createElement('div');
+          div.className = 'reason-item';
+          const isInc = r.direction === 'increases_risk';
+          div.innerHTML = `
+            <span class="reason-label">${r.label}</span>
+            <span class="reason-val ${isInc ? 'inc' : 'low'}">
+              ${isInc ? '▲ +' : '▼ '}${r.contribution.toFixed(4)} (${isInc ? 'Increases Risk' : 'Lowers Risk'})
+            </span>
+          `;
+          container.appendChild(div);
+        });
+
+      } catch (err) {
+        alert(`Failed to connect to API at ${baseUrl}: ${err.message}`);
+      }
+    }
+  </script>
+</body>
+</html>

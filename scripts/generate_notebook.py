@@ -1,0 +1,123 @@
+"""Helper script to generate notebooks/01_eda.ipynb."""
+
+import json
+from pathlib import Path
+
+
+def generate_eda_notebook(notebook_path: str | Path = "notebooks/01_eda.ipynb") -> None:
+    nb_content = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "# 01. Exploratory Data Analysis (IEEE-CIS Fraud Detection)\n",
+                    "\n",
+                    "This notebook inspects class balance, missingness, feature distributions, categoricals, and temporal stability."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "import pandas as pd\n",
+                    "import numpy as np\n",
+                    "import matplotlib.pyplot as plt\n",
+                    "import seaborn as sns\n",
+                    "from pathlib import Path\n",
+                    "\n",
+                    "%matplotlib inline\n",
+                    "sns.set_theme(style='whitegrid')"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# Load ingested parquet dataset\n",
+                    "df = pd.read_parquet('../data/interim/train_merged.parquet')\n",
+                    "print(f'Merged Dataset Shape: {df.shape}')\n",
+                    "print(f'Fraud Rate: {df[\"isFraud\"].mean():.4%}')"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 1. Class Balance and Time Trends"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "df['day_index'] = (df['TransactionDT'] // 86400).astype(int)\n",
+                    "df['week_index'] = (df['day_index'] // 7).astype(int)\n",
+                    "weekly_stats = df.groupby('week_index')['isFraud'].agg(['count', 'mean']).reset_index()\n",
+                    "print(weekly_stats.head())"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 2. Missingness Analysis"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "missing_pct = df.isna().mean()\n",
+                    "high_missing = missing_pct[missing_pct > 0.90]\n",
+                    "print(f'Columns with >90% missingness: {len(high_missing)}')\n",
+                    "print(high_missing.head(10))"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 3. High Cardinality Categoricals"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "cat_cols = df.select_dtypes(include=['category', 'object']).columns\n",
+                    "for col in ['card1', 'card2', 'addr1', 'P_emaildomain', 'DeviceInfo']:\n",
+                    "    if col in df.columns:\n",
+                    "        print(f'{col}: {df[col].nunique()} unique categories')"
+                ]
+            }
+        ],
+        "metadata": {
+            "language_info": {
+                "name": "python"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 2
+    }
+
+    path = Path(notebook_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(nb_content, f, indent=2)
+
+    print(f"Generated notebook at {path}")
+
+
+if __name__ == "__main__":
+    generate_eda_notebook()

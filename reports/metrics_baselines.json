@@ -1,0 +1,35 @@
+{
+  "dummy_baseline": {
+    "pr_auc": 0.034341,
+    "roc_auc": 0.5,
+    "recall_at_p50": 0.000329,
+    "recall_at_p80": 0.0,
+    "recall_at_top1pct": 0.011177,
+    "recall_at_top5pct": 0.061473,
+    "brier_score": 0.033163,
+    "ece": 0.000827,
+    "expected_cost": 496907.59
+  },
+  "logistic_regression_baseline": {
+    "pr_auc": 0.380608,
+    "roc_auc": 0.836158,
+    "recall_at_p50": 0.338264,
+    "recall_at_p80": 0.169625,
+    "recall_at_top1pct": 0.206114,
+    "recall_at_top5pct": 0.461538,
+    "brier_score": 0.125504,
+    "ece": 0.269139,
+    "expected_cost": 277749.77
+  },
+  "lightgbm_default_baseline": {
+    "pr_auc": 0.530273,
+    "roc_auc": 0.901425,
+    "recall_at_p50": 0.51545,
+    "recall_at_p80": 0.330046,
+    "recall_at_top1pct": 0.25378,
+    "recall_at_top5pct": 0.587771,
+    "brier_score": 0.021933,
+    "ece": 0.0039,
+    "expected_cost": 368189.74
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "explanation_comparison": {
+    "without_explanations": {
+      "concurrency": 1,
+      "total_requests": 10,
+      "successful_requests": 10,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "total_duration_sec": 2.15,
+      "rps": 4.6,
+      "p50_latency_ms": 205.59,
+      "p95_latency_ms": 255.86,
+      "p99_latency_ms": 268.52,
+      "mean_latency_ms": 215.44
+    },
+    "with_explanations": {
+      "concurrency": 1,
+      "total_requests": 10,
+      "successful_requests": 10,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "total_duration_sec": 2.9,
+      "rps": 3.4,
+      "p50_latency_ms": 287.35,
+      "p95_latency_ms": 324.16,
+      "p99_latency_ms": 328.91,
+      "mean_latency_ms": 290.25
+    },
+    "overhead_p95_ms": 68.3
+  },
+  "concurrency_profiles": {
+    "10_users": {
+      "concurrency": 10,
+      "total_requests": 10,
+      "successful_requests": 10,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "total_duration_sec": 3.14,
+      "rps": 3.2,
+      "p50_latency_ms": 313.49,
+      "p95_latency_ms": 374.84,
+      "p99_latency_ms": 377.16,
+      "mean_latency_ms": 313.81
+    },
+    "50_users": {
+      "concurrency": 50,
+      "total_requests": 10,
+      "successful_requests": 10,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "total_duration_sec": 3.14,
+      "rps": 3.2,
+      "p50_latency_ms": 314.25,
+      "p95_latency_ms": 361.6,
+      "p99_latency_ms": 365.9,
+      "mean_latency_ms": 313.71
+    },
+    "100_users": {
+      "concurrency": 100,
+      "total_requests": 10,
+      "successful_requests": 10,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "total_duration_sec": 2.99,
+      "rps": 3.4,
+      "p50_latency_ms": 289.68,
+      "p95_latency_ms": 329.15,
+      "p99_latency_ms": 331.11,
+      "mean_latency_ms": 298.5
+    }
+  },
+  "batch_profile": {
+    "concurrency": 1,
+    "total_requests": 5,
+    "successful_requests": 5,
+    "errors": 0,
+    "error_rate_pct": 0.0,
+    "total_duration_sec": 11.21,
+    "rps": 0.4,
+    "p50_latency_ms": 2248.5,
+    "p95_latency_ms": 2286.52,
+    "p99_latency_ms": 2292.27,
+    "mean_latency_ms": 2242.74
+  }
+}

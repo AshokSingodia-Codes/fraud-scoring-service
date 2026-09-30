@@ -1,0 +1,47 @@
+# Byte-compiled / python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Secrets & Environment variables
+.env
+*.env
+kaggle.json
+
+# Raw, Interim, and Processed Data Files (Never commit raw dataset)
+data/
+*.parquet
+*.csv
+*.gz
+*.zip
+
+# Database lock files & local databases
+predictions.db
+predictions.db-journal
+predictions.db-wal
+predictions.db-shm
+mlflow.db
+mlruns/
+
+# Frontend Build & Dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Test & Lint Cache
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+{
+  "t_review": 0.0496,
+  "t_block": 0.7692,
+  "cost_assumptions": {
+    "fp_review_cost": 10.0,
+    "fn_cost_definition": "transaction amount",
+    "target_block_precision": 0.9
+  }
+}

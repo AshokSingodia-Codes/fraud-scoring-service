@@ -1,0 +1,16 @@
+{
+  "row_count": 590540,
+  "column_count": 434,
+  "fraud_rate": 0.03499000914417313,
+  "identity_share": 0.2442391709283029,
+  "memory_usage_mb": 924.24,
+  "column_groups": {
+    "C": 14,
+    "D": 15,
+    "M": 9,
+    "V": 339,
+    "id": 38,
+    "card": 6,
+    "addr": 2
+  }
+}
