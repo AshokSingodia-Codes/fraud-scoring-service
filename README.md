@@ -1,8 +1,10 @@
 # Real-Time Fraud Scoring Service (IEEE-CIS Fraud Detection)
 
-[![CI/CD Pipeline](https://github.com/user/fraud-scoring-service/actions/workflows/ci.yml/badge.svg)](https://github.com/user/fraud-scoring-service/actions/workflows/ci.yml)
+[![CI/CD Pipeline](https://github.com/AshokSingodia-Codes/fraud-scoring-service/actions/workflows/ci.yml/badge.svg)](https://github.com/AshokSingodia-Codes/fraud-scoring-service/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-1.0.0-green.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38bdf8.svg)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
 An end-to-end, production-grade fraud scoring engine built on the Kaggle IEEE-CIS Fraud Detection dataset. It evaluates credit card transactions in real time, returning calibrated fraud probabilities, cost-based decision policies (`APPROVE`, `MANUAL REVIEW`, `BLOCK`), and top-5 per-prediction SHAP reason codes.
@@ -13,7 +15,7 @@ An end-to-end, production-grade fraud scoring engine built on the Kaggle IEEE-CI
 
 ```mermaid
 flowchart TD
-    Client[Client / Web UI / Vercel] -->|POST /v1/score| API[FastAPI Scoring Service]
+    Client[Client / React Vite UI / Vercel] -->|POST /v1/score| API[FastAPI Scoring Service / Render]
     API --> Auth[API Key Auth & Token Bucket Rate Limiter]
     Auth --> FB[FeatureBuilder]
     FB --> LGBM[LightGBM Model Engine]
@@ -54,44 +56,61 @@ All metrics are derived directly from serialized JSON reports in `reports/` prod
 
 ## 🚀 Deployment Instructions
 
-### 1. Render Deployment (Backend API)
-- The API is configured via `render.yaml`.
-- Deploy directly to Render Web Service using the provided `Dockerfile`.
-- Healthcheck endpoint: `/health`
+Repository URL: `https://github.com/AshokSingodia-Codes/fraud-scoring-service.git`
 
-### 2. Vercel / Static Web Deployment (Frontend UI)
-- Frontend index file is located at `app_ui/index.html` configured via `vercel.json`.
-- Connects seamlessly to the Render backend API URL.
+### 1. Render Deployment (Backend API)
+- **Service Type:** Web Service
+- **Runtime:** `Docker` (using `./Dockerfile`)
+- **Config File:** `render.yaml`
+- **Health Check Path:** `/health`
+- **Environment Variables:**
+  - `ALLOWED_API_KEYS`: `demo-api-key-12345,prod-secret-key-67890`
+
+### 2. Vercel Deployment (React + Vite Frontend)
+- **Root Directory:** `frontend`
+- **Framework Preset:** `Vite`
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
+- **Environment Variables:**
+  - `VITE_API_URL`: Your live Render backend service URL (e.g. `https://fraud-scoring-api.onrender.com`)
+  - `VITE_API_KEY`: `demo-api-key-12345`
 
 ---
 
 ## 🛠️ Local Development & Quickstart
 
-### Option A: Direct Python Virtual Environment
+### 1. Clone & Setup Repository
 ```bash
-# 1. Clone & Setup Environment
-git clone https://github.com/user/fraud-scoring-service.git
+git clone https://github.com/AshokSingodia-Codes/fraud-scoring-service.git
 cd fraud-scoring-service
+```
+
+### 2. Run Backend (FastAPI Python Service)
+```bash
+# Setup virtual environment
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt -r requirements-dev.txt
 
-# 2. Run Test Suite
+# Run pytest suite
 .venv/Scripts/pytest tests/
 
-# 3. Start Local FastAPI Backend
+# Start FastAPI server on localhost:8000
 .venv/Scripts/uvicorn src.fraud.serving.app:app --host 127.0.0.1 --port 8000
 ```
 
-### Option B: Docker Compose (Full Stack)
+### 3. Run Frontend (React + Vite App)
+```bash
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1 --port 3000
+```
+Open **`http://localhost:3000`** to access the React dashboard.
+
+### 4. Option: Docker Compose (Full Stack)
 ```bash
 docker compose up --build -d
 ```
 Starts API (`localhost:8000`), Postgres (`localhost:5432`), Redis (`localhost:6379`), Prometheus (`localhost:9090`), and Grafana (`localhost:3000`).
-
-### Option C: Streamlit Interactive UI
-```bash
-.venv/Scripts/streamlit run app_ui/streamlit_app.py
-```
 
 ---
 
