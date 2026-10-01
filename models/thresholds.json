@@ -1,6 +1,7 @@
 {
-  "t_review": 0.0496,
-  "t_block": 0.7692,
+  "fit_split": "validation",
+  "t_review": 0.0595,
+  "t_block": 0.75,
   "cost_assumptions": {
     "fp_review_cost": 10.0,
     "fn_cost_definition": "transaction amount",

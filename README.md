@@ -41,29 +41,29 @@ flowchart TD
 
 ## 📊 Comprehensive Model Evaluation & Performance
 
-All evaluation metrics are computed on a strict **time-series held-out test set** (the latest 20% of transactions by `TransactionDT`) to evaluate true temporal generalization in production conditions without data leakage.
+All evaluation metrics are computed on a strict **time-series held-out test set** (70% train / 15% validation / 15% test by `TransactionDT`; test set spans Days 152–182) to evaluate true temporal generalization in production conditions without data leakage.
 
 ### 1. Classification & Calibration Metrics (Exact Test Set Results)
-| Metric | Tuned LightGBM | Default LightGBM | Logistic Regression Baseline | Dummy Baseline |
-|---|---|---|---|---|
-| **ROC-AUC** | **0.9105** | 0.9014 | 0.8362 | 0.5000 |
-| **PR-AUC** | **0.5497** | 0.5303 | 0.3806 | 0.0343 |
-| **Recall @ Precision = 50%** | **54.49%** | 51.55% | 33.83% | 0.03% |
-| **Recall @ Precision = 80%** | **32.79%** | 33.00% | 16.96% | 0.00% |
-| **Recall @ Top 1% Alerts** | **25.53%** | 25.38% | 20.61% | 1.12% |
-| **Recall @ Top 5% Alerts** | **59.68%** | 58.78% | 46.15% | 6.15% |
-| **Brier Score (Calibration)** | **0.0221** | 0.0219 | 0.1255 | 0.0332 |
-| **Expected Calibration Error (ECE)** | **0.0090** | 0.0039 | 0.2691 | 0.0008 |
-| **Score Population Stability Index (PSI)** | **0.0016** | -- | -- | -- |
+| Metric | Final Calibrated LightGBM | LightGBM Engineered | Default LightGBM | Logistic Regression Baseline | Dummy Baseline |
+|---|---|---|---|---|---|
+| **ROC-AUC** | **0.9103** | 0.9063 | 0.9014 | 0.8362 | 0.5000 |
+| **PR-AUC** | **0.5343** | 0.5512 | 0.5303 | 0.3806 | 0.0343 |
+| **Recall @ Precision = 50%** | **54.23%** | 53.52% | 51.55% | 33.83% | 0.03% |
+| **Recall @ Precision = 80%** | **33.08%** | 35.50% | 33.00% | 16.96% | 0.00% |
+| **Recall @ Top 1% Alerts** | **25.53%** | 26.20% | 25.38% | 20.61% | 1.12% |
+| **Recall @ Top 5% Alerts** | **59.91%** | 58.71% | 58.78% | 46.15% | 6.15% |
+| **Brier Score (Calibration)** | **0.0221** | 0.0214 | 0.0219 | 0.1255 | 0.0332 |
+| **Expected Calibration Error (ECE)** | **0.0041** | 0.0018 | 0.0039 | 0.2691 | 0.0008 |
+| **Score Population Stability Index (PSI)** | **0.0018** | -- | -- | -- | -- |
 
 ### 2. Cost Matrix & Optimal Decision Thresholds
 Decision policy boundaries are derived by optimizing total expected business cost under asymmetric financial penalties ($C_{\text{FP}} = \$10.00$ manual review cost, $C_{\text{FN}} = \text{Transaction Amount}$ chargeback loss):
 
 | Policy Action | Threshold Range | Operational Impact & Characteristics |
 |---|---|---|
-| **APPROVE** | Score $< 0.0496$ | Fraud probability negligible; zero manual review friction. |
-| **MANUAL REVIEW** | $0.0496 \le \text{Score} < 0.7692$ | Optimal review threshold ($t_{\text{review}} = 0.0496$) minimizing business financial loss. |
-| **BLOCK** | Score $\ge 0.7692$ | High-precision automated block threshold ($t_{\text{block}} = 0.7692$) achieving $\ge 90\%$ precision. |
+| **APPROVE** | Score $< 0.0595$ | Fraud probability negligible; zero manual review friction. |
+| **MANUAL REVIEW** | $0.0595 \le \text{Score} < 0.7500$ | Optimal review threshold ($t_{\text{review}} = 0.0595$) minimizing business financial loss. |
+| **BLOCK** | Score $\ge 0.7500$ | High-precision automated block threshold ($t_{\text{block}} = 0.7500$) achieving $\ge 90\%$ precision. |
 
 ### 3. Load Test Benchmarks (Real Measured Latencies)
 | Profile | Concurrency | Throughput | p50 Latency | p95 Latency | p99 Latency | Error Rate |
@@ -161,4 +161,4 @@ curl -X POST "http://localhost:8000/v1/score?explain=true" \
 
 ## 💼 Resume Bullet
 
-> *Built an end-to-end, real-time fraud scoring service on 590k IEEE-CIS transactions (LightGBM, isotonic probability calibration, cost-optimal decision thresholds, per-prediction SHAP reason codes) reaching 0.884 ROC-AUC on a strict time-held-out test set; served via FastAPI with PostgreSQL, Redis rate-limiting, and Prometheus monitoring at 0.0% load test error rate; containerized with Docker Compose and GitHub Actions CI/CD.*
+> *Built an end-to-end, real-time fraud scoring service on 590k IEEE-CIS transactions (LightGBM, isotonic probability calibration, cost-optimal decision thresholds, per-prediction SHAP reason codes) reaching 0.910 ROC-AUC and 0.534 PR-AUC on a strict time-held-out test set; served via FastAPI with PostgreSQL, Redis rate-limiting, and Prometheus monitoring at 0.0% load test error rate; containerized with Docker Compose and GitHub Actions CI/CD.*

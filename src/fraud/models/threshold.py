@@ -20,6 +20,7 @@ def optimize_thresholds(
     val_amounts: np.ndarray | pd.Series,
     fp_review_cost: float = 10.0,
     target_block_precision: float = 0.90,
+    fit_split: str = "validation",
 ) -> dict[str, Any]:
     """Compute cost-optimal t_review and high-precision t_block on validation data.
 
@@ -62,6 +63,7 @@ def optimize_thresholds(
         best_t_review = round(t_block * 0.8, 4)
 
     return {
+        "fit_split": fit_split,
         "t_review": round(best_t_review, 4),
         "t_block": round(t_block, 4),
         "cost_assumptions": {

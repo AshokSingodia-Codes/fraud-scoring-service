@@ -20,14 +20,16 @@ from src.fraud.evaluation.metrics import compute_brier_score, compute_ece
 class ProbabilityCalibrator:
     """Isotonic regression calibrator wrapper for fraud probability scores."""
 
-    def __init__(self):
+    def __init__(self, fit_split: str = "validation"):
         self.calibrator = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")
         self.is_fitted = False
+        self.fit_split = fit_split
 
-    def fit(self, y_val: np.ndarray | pd.Series, val_probs: np.ndarray) -> "ProbabilityCalibrator":
+    def fit(self, y_val: np.ndarray | pd.Series, val_probs: np.ndarray, fit_split: str = "validation") -> "ProbabilityCalibrator":
         """Fit calibrator on validation probabilities."""
         self.calibrator.fit(val_probs, y_val)
         self.is_fitted = True
+        self.fit_split = fit_split
         return self
 
     def calibrate(self, probs: np.ndarray) -> np.ndarray:

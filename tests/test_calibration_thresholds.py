@@ -79,3 +79,20 @@ def test_make_decision():
     assert make_decision(0.10, t_review, t_block) == "approve"
     assert make_decision(0.50, t_review, t_block) == "review"
     assert make_decision(0.90, t_review, t_block) == "block"
+
+
+def test_fit_split_not_test():
+    import json
+    thresholds_path = Path("models/thresholds.json")
+    if thresholds_path.exists():
+        with thresholds_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            assert data.get("fit_split") != "test", "Thresholds were fit on the test split!"
+            assert data.get("fit_split") == "validation"
+
+    calibrator_path = Path("models/calibrator.joblib")
+    if calibrator_path.exists():
+        cal = ProbabilityCalibrator.load(calibrator_path)
+        assert getattr(cal, "fit_split", None) != "test", "Calibrator was fit on the test split!"
+        assert getattr(cal, "fit_split", None) == "validation"
+

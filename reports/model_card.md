@@ -5,7 +5,7 @@
 - **Version:** 1.0.0
 - **Model Architecture:** Gradient Boosted Decision Trees with Calibrated Probabilities (Isotonic Regression)
 - **Input Features:** 457 engineered numerical, categorical, and frequency-encoded features.
-- **Output:** Calibrated fraud probability \(P(\text{fraud})\), Decision (`APPROVE`, `REVIEW`, `BLOCK`), Risk Band (`Low`, `Medium`, `High`), Top-5 SHAP Reason Codes.
+- **Output:** Calibrated fraud probability \(P(\\text{fraud})\\), Decision (`APPROVE`, `REVIEW`, `BLOCK`), Risk Band (`Low`, `Medium`, `High`), Top-5 SHAP Reason Codes.
 
 ## Intended Use
 - **Primary Use Case:** Real-time scoring of card transactions to prevent fraudulent approvals and flag high-risk transactions for manual review.
@@ -22,8 +22,8 @@
 - **Brier Score (Post-Calibration):** 0.0221
 
 ## Decision Policy & Thresholds
-- **Review Threshold (\(t_\text{review}\)):** 0.0496 (Minimizes expected business loss = FP review cost + FN transaction loss)
-- **Block Threshold (\(t_\text{block}\)):** 0.7692 (Precision \(\ge 0.90\) on validation set)
+- **Review Threshold (\(t_\\text{review}\)):** 0.0496 (Minimizes expected business loss = FP review cost + FN transaction loss)
+- **Block Threshold (\(t_\\text{block}\)):** 0.7692 (Precision \(\\ge 0.90\) on validation set)
 
 ## Real-Time Serving Performance
 - **Single Score p95 Latency (without SHAP):** 255.86 ms
