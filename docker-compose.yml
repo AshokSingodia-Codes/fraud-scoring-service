@@ -12,7 +12,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/fraud_db
       - REDIS_URL=redis://redis:6379/0
-      - ALLOWED_API_KEYS=demo-api-key-12345,prod-secret-key-67890
+      - ALLOWED_API_KEYS=demo-api-key-12345,change-me-prod-key
     depends_on:
       postgres:
         condition: service_healthy

@@ -8,6 +8,7 @@ __pycache__/
 env/
 venv/
 ENV/
+scratch_venv/
 
 # Secrets & Environment variables
 .env
@@ -45,3 +46,12 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Agent skills & scratch
+.agents/
+scratch/
+skills-lock.json
+
+# Report logs
+reports/*.log
+

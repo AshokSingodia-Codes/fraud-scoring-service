@@ -5,3 +5,4 @@ ruff>=0.1.0
 pre-commit>=3.3.0
 locust>=2.15.0
 kaggle>=1.5.16
+psutil>=5.9.0

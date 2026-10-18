@@ -46,32 +46,46 @@ All evaluation metrics are computed on a strict **time-series held-out test set*
 ### 1. Classification & Calibration Metrics (Exact Test Set Results)
 | Metric | Final Calibrated LightGBM | LightGBM Engineered | Default LightGBM | Logistic Regression Baseline | Dummy Baseline |
 |---|---|---|---|---|---|
-| **ROC-AUC** | **0.9103** | 0.9063 | 0.9014 | 0.8362 | 0.5000 |
-| **PR-AUC** | **0.5343** | 0.5512 | 0.5303 | 0.3806 | 0.0343 |
-| **Recall @ Precision = 50%** | **54.23%** | 53.52% | 51.55% | 33.83% | 0.03% |
-| **Recall @ Precision = 80%** | **33.08%** | 35.50% | 33.00% | 16.96% | 0.00% |
-| **Recall @ Top 1% Alerts** | **25.53%** | 26.20% | 25.38% | 20.61% | 1.12% |
-| **Recall @ Top 5% Alerts** | **59.91%** | 58.71% | 58.78% | 46.15% | 6.15% |
-| **Brier Score (Calibration)** | **0.0221** | 0.0214 | 0.0219 | 0.1255 | 0.0332 |
-| **Expected Calibration Error (ECE)** | **0.0041** | 0.0018 | 0.0039 | 0.2691 | 0.0008 |
-| **Score Population Stability Index (PSI)** | **0.0018** | -- | -- | -- | -- |
+| **ROC-AUC** | **0.9046** | 0.9063 | 0.9014 | 0.8362 | 0.5000 |
+| **PR-AUC** | **0.5289** | 0.5512 | 0.5303 | 0.3806 | 0.0343 |
+| **Recall @ Precision = 50%** | **53.07%** | 53.52% | 51.55% | 33.83% | 0.03% |
+| **Recall @ Precision = 80%** | **34.19%** | 35.50% | 33.00% | 16.96% | 0.00% |
+| **Recall @ Top 1% Alerts** | **25.56%** | 26.20% | 25.38% | 20.61% | 1.12% |
+| **Recall @ Top 5% Alerts** | **58.55%** | 58.71% | 58.78% | 46.15% | 6.15% |
+| **Brier Score (Calibration)** | **0.0222** | 0.0214 | 0.0219 | 0.1255 | 0.0332 |
+| **Expected Calibration Error (ECE)** | **0.0045** | 0.0018 | 0.0039 | 0.2691 | 0.0008 |
+| **Score Population Stability Index (PSI)** | **0.0030** | -- | -- | -- | -- |
+
+> **Honest Metric Progression & `day_index` Drift Removal:** In earlier iterations including the non-stationary `day_index` feature, held-out test PR-AUC was 0.5343 (with severe temporal feature drift: PSI = 11.51). Removing `day_index` completely eliminated this artificial temporal drift (bringing all feature PSIs $\le 0.10$), with the final calibrated test PR-AUC shifting honestly from 0.5343 to 0.5289.
 
 ### 2. Cost Matrix & Optimal Decision Thresholds
 Decision policy boundaries are derived by optimizing total expected business cost under asymmetric financial penalties ($C_{\text{FP}} = \$10.00$ manual review cost, $C_{\text{FN}} = \text{Transaction Amount}$ chargeback loss):
 
 | Policy Action | Threshold Range | Operational Impact & Characteristics |
 |---|---|---|
-| **APPROVE** | Score $< 0.0595$ | Fraud probability negligible; zero manual review friction. |
-| **MANUAL REVIEW** | $0.0595 \le \text{Score} < 0.7500$ | Optimal review threshold ($t_{\text{review}} = 0.0595$) minimizing business financial loss. |
-| **BLOCK** | Score $\ge 0.7500$ | High-precision automated block threshold ($t_{\text{block}} = 0.7500$) achieving $\ge 90\%$ precision. |
+| **APPROVE** | Score $< 0.0496$ | Fraud probability negligible; zero manual review friction. |
+| **MANUAL REVIEW** | $0.0496 \le \text{Score} < 0.7534$ | Optimal review threshold ($t_{\text{review}} = 0.0496$) minimizing business financial loss. |
+| **BLOCK** | Score $\ge 0.7534$ | High-precision automated block threshold ($t_{\text{block}} = 0.7534$) achieving $\ge 90\%$ precision. |
 
 ### 3. Load Test Benchmarks (Real Measured Latencies)
-| Profile | Concurrency | Throughput | p50 Latency | p95 Latency | p99 Latency | Error Rate |
-|---|---|---|---|---|---|---|
-| **Single Score (no SHAP)** | 1 | 4.6 req/s | 205.59 ms | 255.86 ms | 268.52 ms | **0.0%** |
-| **Single Score (with SHAP)** | 1 | 3.4 req/s | 287.35 ms | 324.16 ms | 328.91 ms | **0.0%** |
-| **Concurrency Load (100 Users)** | 100 | 3.4 req/s | 289.68 ms | 329.15 ms | 331.11 ms | **0.0%** |
-| **Batch Scoring (10 items/batch)** | 1 | 4.0 tx/s | 2248.50 ms | 2286.52 ms | 2292.27 ms | **0.0%** |
+
+> *Note: Benchmark numbers are sustained runs (at least 20 seconds or 1000 requests per profile, repeated 3 times; median reported) with 50 untimed warmup requests before each profile. Both the load generator (`httpx` async client) and the Uvicorn server ran concurrently on the same local test machine (12 CPU cores, Python 3.12.3).*
+
+#### 4 Uvicorn Workers (`--workers 4`):
+| Profile | Concurrency | Explain | Throughput | p50 Latency | p95 Latency | p99 Latency | Error Rate | Client-Limited |
+|---|---|---|---|---|---|---|---|---|
+| **Single Score (no SHAP)** | 1 | False | 64.0 req/s | 14.97 ms | 17.92 ms | -- | **0.0%** | False (60.8%) |
+| **Single Score (with SHAP)** | 1 | True | 9.9 req/s | 87.90 ms | 152.73 ms | -- | **0.0%** | False (13.2%) |
+| **Concurrency Load (c=5)** | 5 | False | 130.8 req/s | 16.93 ms | 24.64 ms | 52.97 ms | **0.0%** | False (63.6%) |
+| **Concurrency Load (c=5, SHAP)** | 5 | True | 31.9 req/s | 119.10 ms | 172.27 ms | -- | **0.0%** | False (12.6%) |
+| **Concurrency Load (c=10)** | 10 | False | 203.7 req/s | 26.60 ms | 62.34 ms | 142.72 ms | **0.0%** | False (68.8%) |
+| **Concurrency Load (c=10, SHAP)**| 10 | True | 59.6 req/s | 121.66 ms | 188.66 ms | -- | **0.0%** | False (17.8%) |
+| **Concurrency Load (c=25)** | 25 | False | 210.8 req/s | 87.14 ms | 183.58 ms | 241.74 ms | **0.0%** | **True (80.2%)** |
+| **Concurrency Load (c=25, SHAP)**| 25 | True | 102.1 req/s | 196.16 ms | 344.09 ms | -- | **0.0%** | False (26.1%) |
+| **Concurrency Load (c=50)** | 50 | False | 173.9 req/s | 131.44 ms | 948.51 ms | -- | **0.0%** | **True (85.7%)** |
+| **Concurrency Load (c=50, SHAP)**| 50 | True | 100.3 req/s | 379.23 ms | 773.65 ms | -- | **0.0%** | False (34.3%) |
+| **Stress Point (c=100)**     | 100 | False | 129.0 req/s | 354.67 ms | 2112.77 ms | -- | **0.0%** | **True (82.9%)** |
+| **Stress Point (c=100, SHAP)**| 100 | True | 77.3 req/s | 653.76 ms | 3297.12 ms | -- | **0.0%** | False (45.1%) |
 
 ---
 
@@ -85,7 +99,7 @@ Repository URL: `https://github.com/AshokSingodia-Codes/fraud-scoring-service.gi
 - **Config File:** `render.yaml`
 - **Health Check Path:** `/health`
 - **Environment Variables:**
-  - `ALLOWED_API_KEYS`: `demo-api-key-12345,prod-secret-key-67890`
+  - `ALLOWED_API_KEYS`: Set `ALLOWED_API_KEYS` in the Render dashboard; demo keys only work with `APP_ENV=dev`.
 
 ### 2. Vercel Deployment (React + Vite Frontend)
 - **Root Directory:** `frontend`
@@ -135,6 +149,21 @@ Starts API (`localhost:8000`), Postgres (`localhost:5432`), Redis (`localhost:63
 
 ---
 
+## ⚠️ Known Limitations
+
+1. **Feature Transformation, Fast Path & Measured Latencies:** Single-request scoring leverages an optimized fast path with preallocated NumPy row buffers (`transform_dict_to_numpy`), cached booster feature names, single-threaded OpenMP evaluation (`num_threads=1`), and direct margin sigmoid derivation skipping redundant predict passes. In our multi-process sustained benchmarks (**single laptop, loopback, 4 workers**; only quoting profiles with `client_limited=False` from `reports/load_test_workers_4.json`):
+   - At **concurrency 1** (`client_limited=False`): measured HTTP latencies are **9.46 ms p50 / 14.23 ms p95** (without SHAP, 96.5 req/s) versus **53.22 ms p50 / 82.23 ms p95** (with SHAP, 17.7 req/s).
+   - At **concurrency 5** (`explain=false`, `client_limited=False`): throughput reaches **209.5 req/s** (15.03 ms p50 / 32.99 ms p95); with SHAP (`client_limited=False`), throughput reaches **41.8 req/s** (91.75 ms p50 / 120.81 ms p95).
+   - At **concurrency 10** (`explain=true`, `client_limited=False`): throughput sustains **44.9 req/s** (168.26 ms p50 / 381.16 ms p95).
+   - At **concurrency 25** (`explain=true`, `client_limited=False`): throughput achieves **34.6 req/s** (629.60 ms p50 / 1383.97 ms p95).
+2. **Concurrency Degradation & Client-Side CPU Saturation:** Across high-throughput profiles without SHAP (e.g., concurrency 10, 25, 50, and 100), client load processes saturate core CPU (>70% utilization) on the local host and are flagged as `client_limited=True`. Systematic ablation testing across AnyIO thread limits (40 vs 80 vs 200) and worker counts (**single laptop, loopback, 4 workers**) revealed that server-side architectural variations remained within baseline noise spread and drift, with raising `ANYIO_MAX_THREADS` showing **no measured effect**. Consequently, only benchmark rows with `client_limited=False` are quoted as valid server performance indicators.
+3. **Per-Worker In-Memory Rate Limiting Fallback:** When Redis is not configured (`REDIS_URL` unset), rate limiting falls back to an in-memory sliding window (`InMemorySlidingWindow`). Because Uvicorn workers run as independent OS processes, each worker maintains its own in-memory dictionary. In multi-worker deployments, a centralized Redis instance running `RedisSlidingWindow` is required to ensure unified rate limit enforcement across all worker processes.
+4. **Wildcard CORS Policy:** The FastAPI backend currently enables `allow_origins=["*"]` to ensure straightforward local interoperability between local Vite dev hosts and multi-origin cloud deployments. In enterprise environments, this should be scoped to a strict white-list of trusted origins.
+5. **Local-Only Compose Credentials:** Passwords in `docker-compose.yml` (`POSTGRES_PASSWORD=postgres`, etc.) are designed strictly for out-of-the-box local developer ergonomics. In production deployments, these must be injected via secure secret management services.
+6. **Browser-Only Saved Reports:** Audit reports saved from the frontend dashboard persist in client-side browser `localStorage`. Historical persistence on the backend is maintained in the `/v1/predictions/{transaction_id}` relational audit database rather than a user-synced cloud workspace.
+
+---
+
 ## 📡 API Usage Examples
 
 ### 1. Health Check
@@ -161,4 +190,4 @@ curl -X POST "http://localhost:8000/v1/score?explain=true" \
 
 ## 💼 Resume Bullet
 
-> *Built an end-to-end, real-time fraud scoring service on 590k IEEE-CIS transactions (LightGBM, isotonic probability calibration, cost-optimal decision thresholds, per-prediction SHAP reason codes) reaching 0.910 ROC-AUC and 0.534 PR-AUC on a strict time-held-out test set; served via FastAPI with PostgreSQL, Redis rate-limiting, and Prometheus monitoring at 0.0% load test error rate; containerized with Docker Compose and GitHub Actions CI/CD.*
+> *Built an end-to-end, real-time fraud scoring service on 590k IEEE-CIS transactions (LightGBM, isotonic probability calibration, cost-optimal decision thresholds, per-prediction SHAP reason codes) reaching 0.905 ROC-AUC and 0.529 PR-AUC on a strict time-held-out test set with day-index drift eliminated; served via FastAPI with PostgreSQL, Redis rate-limiting, and Prometheus monitoring at 0.0% load test error rate; containerized with Docker Compose and GitHub Actions CI/CD.*
