@@ -20,6 +20,14 @@ def test_ready_endpoint():
     assert response.json()["status"] == "ready"
 
 
+def test_anyio_thread_limiter_size(monkeypatch):
+    monkeypatch.setenv("ANYIO_MAX_THREADS", "123")
+    with TestClient(app):
+        assert app.state.anyio_limiter_tokens == 123
+
+
+
+
 def test_auth_failure():
     # Missing API key
     res1 = client.post("/v1/score", json={})
@@ -28,6 +36,30 @@ def test_auth_failure():
     # Invalid API key
     res2 = client.post("/v1/score", headers={"X-API-Key": "invalid-key"}, json={})
     assert res2.status_code == 403
+
+
+def test_auth_env_scenarios(monkeypatch):
+    from src.fraud.serving.auth import get_allowed_api_keys
+
+    # Scenario A: ALLOWED_API_KEYS is explicitly set
+    monkeypatch.setenv("ALLOWED_API_KEYS", "custom-key-1,custom-key-2")
+    monkeypatch.setenv("APP_ENV", "prod")
+    keys = get_allowed_api_keys()
+    assert keys == {"custom-key-1", "custom-key-2"}
+    assert "demo-api-key-12345" not in keys
+
+    # Scenario B: ALLOWED_API_KEYS is empty and APP_ENV is dev
+    monkeypatch.delenv("ALLOWED_API_KEYS", raising=False)
+    monkeypatch.setenv("APP_ENV", "dev")
+    keys_dev = get_allowed_api_keys()
+    assert "demo-api-key-12345" in keys_dev
+    assert "prod-secret-key-67890" in keys_dev
+
+    # Scenario C: ALLOWED_API_KEYS is empty and APP_ENV is prod
+    monkeypatch.delenv("ALLOWED_API_KEYS", raising=False)
+    monkeypatch.setenv("APP_ENV", "prod")
+    keys_prod = get_allowed_api_keys()
+    assert len(keys_prod) == 0
 
 
 def test_score_single_transaction():
@@ -135,3 +167,6 @@ def test_training_serving_parity():
     prob_batch = res_batch.json()["results"][0]["fraud_probability"]
 
     assert prob_single == prob_batch
+
+
+

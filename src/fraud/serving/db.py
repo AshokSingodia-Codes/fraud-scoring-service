@@ -1,5 +1,4 @@
-"""Database logging module using SQLAlchemy (Stage 10)."""
-
+import logging
 import os
 import threading
 import time
@@ -44,9 +43,13 @@ class PredictionLog(Base):
     latency_ms = Column(Float)
 
 
-Base.metadata.create_all(bind=engine)
+def init_db() -> None:
+    """Initialize database tables within application lifespan."""
+    Base.metadata.create_all(bind=engine)
+
 
 _db_lock = threading.Lock()
+logger = logging.getLogger(__name__)
 
 
 def log_prediction_to_db(score_res: dict[str, Any]) -> None:
@@ -66,8 +69,12 @@ def log_prediction_to_db(score_res: dict[str, Any]) -> None:
                 )
                 db.add(log_entry)
                 db.commit()
+            except Exception:
+                db.rollback()
+                raise
             finally:
                 db.close()
     except Exception as e:
         # Graceful degradation if database is unavailable
-        print(f"Warning: Database log failed: {e}")
+        logger.warning("Database log failed: %s", e)
+

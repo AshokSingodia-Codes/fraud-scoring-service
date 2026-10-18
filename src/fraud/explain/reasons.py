@@ -4,6 +4,7 @@ Computes SHAP contributions using booster.predict(X, pred_contrib=True),
 returning readable top reason codes and directions for real-time API responses.
 """
 
+import time
 from typing import Any
 
 import lightgbm as lgb
@@ -17,7 +18,6 @@ FEATURE_LABEL_MAP = {
     "amt_is_round": "Round Amount Flag",
     "hour_of_day": "Hour of Day",
     "day_of_week": "Day of Week",
-    "day_index": "Day Index",
     "card1_fq": "Card1 Frequency",
     "card2_fq": "Card2 Frequency",
     "card1_addr1_fq": "Card & Address Frequency",
@@ -32,17 +32,28 @@ FEATURE_LABEL_MAP = {
 
 def explain_prediction(
     booster: lgb.Booster,
-    feature_row: pd.DataFrame,
+    feature_row: pd.DataFrame | np.ndarray,
     top_k: int = 5,
+    raw_payload: dict[str, Any] | None = None,
+    feature_names: list[str] | None = None,
+    contribs: np.ndarray | None = None,
+    num_threads: int = 1,
 ) -> dict[str, Any]:
     """Compute per-feature SHAP contributions for a single feature row.
 
     Returns:
         Dict with top_reasons list, base_value, and margin_score.
     """
-    # Compute contributions: returns array of shape (1, num_features + 1)
-    contribs = booster.predict(feature_row, pred_contrib=True)[0]
-    feature_names = booster.feature_name()
+    t_shap_0 = time.perf_counter()
+    if contribs is None:
+        contribs = booster.predict(feature_row, pred_contrib=True, num_threads=num_threads)[0]
+    elif contribs.ndim > 1:
+        contribs = contribs[0]
+    t_shap_compute = (time.perf_counter() - t_shap_0) * 1000.0
+
+    t_reasons_0 = time.perf_counter()
+    if feature_names is None:
+        feature_names = booster.feature_name()
 
     feat_contribs = contribs[:-1]
     bias = float(contribs[-1])
@@ -54,7 +65,12 @@ def explain_prediction(
     reasons = []
     for idx in abs_indices:
         fname = feature_names[idx]
-        val = feature_row[fname].iloc[0]
+        if raw_payload is not None and fname in raw_payload:
+            val = raw_payload[fname]
+        elif isinstance(feature_row, pd.DataFrame):
+            val = feature_row[fname].iloc[0]
+        else:
+            val = feature_row[0, idx]
         contrib_val = float(feat_contribs[idx])
         readable_name = FEATURE_LABEL_MAP.get(fname, fname)
 
@@ -67,9 +83,14 @@ def explain_prediction(
                 "direction": "increases_risk" if contrib_val > 0 else "lowers_risk",
             }
         )
+    t_reasons_build = (time.perf_counter() - t_reasons_0) * 1000.0
 
     return {
         "base_value": round(bias, 4),
         "margin_score": round(total_margin, 4),
         "reasons": reasons,
+        "timing": {
+            "shap_compute": t_shap_compute,
+            "reasons_build": t_reasons_build,
+        },
     }

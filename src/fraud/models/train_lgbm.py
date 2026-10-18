@@ -141,14 +141,10 @@ def train_and_evaluate(config_path: str | Path | None = None) -> dict[str, Any]:
     )
 
     fb_path = models_dir / "feature_builder.joblib"
-    if not fb_path.exists():
-        print("FeatureBuilder artifact not found. Fitting a new instance...")
-        fb = FeatureBuilder()
-        fb.fit(train_df)
-        fb.save(fb_path, models_dir / "feature_spec.json")
-    else:
-        print(f"Loading FeatureBuilder from {fb_path}...")
-        fb = FeatureBuilder.load(fb_path)
+    print("Fitting fresh FeatureBuilder on train dataset...", flush=True)
+    fb = FeatureBuilder()
+    fb.fit(train_df)
+    fb.save(fb_path, models_dir / "feature_spec.json")
 
     print("Transforming train, validation and test data...")
     X_train = fb.transform(train_df)

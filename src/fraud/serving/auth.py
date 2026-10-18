@@ -13,10 +13,20 @@ DEFAULT_API_KEYS = {
 }
 
 
+def get_allowed_api_keys() -> set[str]:
+    """Retrieve allowed API keys from environment, falling back to demo keys only when APP_ENV=dev."""
+    raw_keys = os.getenv("ALLOWED_API_KEYS", "")
+    allowed = {k.strip() for k in raw_keys.split(",") if k.strip()}
+
+    if not allowed and os.getenv("APP_ENV", "").strip().lower() == "dev":
+        allowed = set(DEFAULT_API_KEYS)
+
+    return allowed
+
+
 def get_api_key(api_key_header: str = Security(API_KEY_HEADER)) -> str:
     """Validate API key provided in X-API-Key header."""
-    allowed_keys = set(os.getenv("ALLOWED_API_KEYS", "").split(",")) | DEFAULT_API_KEYS
-    allowed_keys.discard("")
+    allowed_keys = get_allowed_api_keys()
 
     if not api_key_header:
         raise HTTPException(

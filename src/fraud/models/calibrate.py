@@ -33,10 +33,14 @@ class ProbabilityCalibrator:
         return self
 
     def calibrate(self, probs: np.ndarray) -> np.ndarray:
-        """Transform raw probabilities to calibrated probabilities."""
+        """Transform raw probabilities to calibrated probabilities via np.interp."""
         if not self.is_fitted:
             raise ValueError("Calibrator must be fit before calibrate can be called.")
-        calibrated = self.calibrator.transform(probs)
+        if hasattr(self.calibrator, "f_") and hasattr(self.calibrator.f_, "x") and hasattr(self.calibrator.f_, "y"):
+            f = self.calibrator.f_
+            calibrated = np.interp(probs, f.x, f.y, left=f.y[0], right=f.y[-1])
+        else:
+            calibrated = self.calibrator.transform(probs)
         return np.clip(calibrated, 0.0, 1.0)
 
     def save(self, file_path: str | Path) -> None:

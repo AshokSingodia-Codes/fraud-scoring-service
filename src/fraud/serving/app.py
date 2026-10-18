@@ -1,18 +1,22 @@
-"""FastAPI scoring application for Real-Time Fraud Scoring Service (Stage 10)."""
-
+import logging
 import os
 import sys
 import time
 
 sys.path.insert(0, os.path.abspath("."))
 
+# Ensure single-threaded BLAS to prevent thread context allocation failures under concurrency
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Response, status
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from src.fraud.serving.auth import get_api_key
-from src.fraud.serving.db import PredictionLog, SessionLocal, log_prediction_to_db
+from src.fraud.serving.db import PredictionLog, SessionLocal, init_db, log_prediction_to_db
 from src.fraud.serving.metrics import (
     DECISION_COUNT,
     PREDICTION_SCORE,
@@ -29,6 +33,7 @@ from src.fraud.serving.schemas import (
     Transaction,
 )
 
+logger = logging.getLogger(__name__)
 predictor: FraudPredictor | None = None
 
 
@@ -48,13 +53,35 @@ def get_predictor() -> FraudPredictor:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model predictor instance at startup."""
+    """Initialize database tables and load model predictor instance at startup."""
     global predictor
     try:
-        predictor = FraudPredictor()
-        print("FraudPredictor loaded successfully.")
+        init_db()
+        logger.info("Database tables initialized successfully.")
     except Exception as e:
-        print(f"Warning: FraudPredictor initial load deferred/failed: {e}")
+        logger.warning("Database initialization deferred/failed: %s", e)
+
+    try:
+        predictor = FraudPredictor()
+        logger.info("FraudPredictor loaded successfully.")
+    except Exception as e:
+        logger.warning("FraudPredictor initial load deferred/failed: %s", e)
+
+    try:
+        import anyio
+        limiter = anyio.to_thread.current_default_thread_limiter()
+        initial_tokens = limiter.total_tokens
+        anyio_threads = int(os.getenv("ANYIO_MAX_THREADS", "40"))
+        limiter.total_tokens = anyio_threads
+        app.state.anyio_limiter_tokens = limiter.total_tokens
+        logger.info(
+            "AnyIO default thread limiter tokens: initial=%d, configured=%d",
+            initial_tokens,
+            limiter.total_tokens,
+        )
+    except Exception as e:
+        logger.warning("Could not configure anyio thread limiter: %s", e)
+
     yield
 
 
@@ -112,31 +139,77 @@ def get_model_info(api_key: str = Depends(get_api_key)):
 
 
 @app.post("/v1/score", response_model=ScoreResponse, tags=["Scoring"])
-def score_transaction(
-    tx: Transaction,
+async def score_transaction(
+    request: Request,
+    background_tasks: BackgroundTasks,
     explain: bool = True,
-    api_key: str = Depends(get_api_key),
 ):
-    """Score a single transaction in real time."""
-    check_rate_limit(api_key)
-    pred = get_predictor()
+    """Score a single transaction in real time with comprehensive stage timing."""
+    handler_t0 = time.perf_counter()
 
-    start_time = time.perf_counter()
+    # 1. Auth stage
+    t_auth_0 = time.perf_counter()
+    api_key_header = request.headers.get("X-API-Key")
+    api_key = get_api_key(api_key_header)
+    t_auth_ms = (time.perf_counter() - t_auth_0) * 1000.0
+
+    # 2. Ratelimit stage
+    t_rate_0 = time.perf_counter()
+    check_rate_limit(api_key)
+    t_ratelimit_ms = (time.perf_counter() - t_rate_0) * 1000.0
+
+    # 3. Request validation (Pydantic) stage
+    t_val_0 = time.perf_counter()
+    try:
+        raw_json = await request.json()
+        tx = Transaction.model_validate(raw_json)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    t_val_ms = (time.perf_counter() - t_val_0) * 1000.0
+
+    pred = get_predictor()
     payload = tx.model_dump()
 
-    res = pred.score_dict(payload, explain=explain)
+    res, timings = pred.score_dict(payload, explain=explain, return_timings=True)
+
+    # 4. Audit write stage (scheduled via BackgroundTasks)
+    t_audit_0 = time.perf_counter()
+    background_tasks.add_task(log_prediction_to_db, res)
+    t_audit_ms = (time.perf_counter() - t_audit_0) * 1000.0
+
+    # 5. Serialization stage
+    t_ser_0 = time.perf_counter()
+    score_resp = ScoreResponse(**res)
+    resp_body = score_resp.model_dump_json()
+    t_ser_ms = (time.perf_counter() - t_ser_0) * 1000.0
+
+    total_handler_ms = (time.perf_counter() - handler_t0) * 1000.0
 
     # Record Prometheus metrics
-    elapsed = time.perf_counter() - start_time
     REQUEST_COUNT.labels(endpoint="/v1/score", status="200").inc()
-    REQUEST_LATENCY.labels(endpoint="/v1/score").observe(elapsed)
+    REQUEST_LATENCY.labels(endpoint="/v1/score").observe(total_handler_ms / 1000.0)
     PREDICTION_SCORE.observe(res["fraud_probability"])
     DECISION_COUNT.labels(decision=res["decision"]).inc()
 
-    # Log prediction to DB asynchronously / safely
-    log_prediction_to_db(res)
+    server_timing = (
+        f"req_val;dur={t_val_ms:.2f}, "
+        f"auth;dur={t_auth_ms:.2f}, "
+        f"rate;dur={t_ratelimit_ms:.2f}, "
+        f"feat;dur={timings['feat_build']:.2f}, "
+        f"pred;dur={timings['predict']:.2f}, "
+        f"cal;dur={timings['calibrate']:.2f}, "
+        f"shap;dur={timings['shap']:.2f}, "
+        f"reasons;dur={timings['reasons_build']:.2f}, "
+        f"audit;dur={t_audit_ms:.2f}, "
+        f"ser;dur={t_ser_ms:.2f}, "
+        f"total_handler;dur={total_handler_ms:.2f}"
+    )
 
-    return ScoreResponse(**res)
+    return Response(
+        content=resp_body,
+        media_type="application/json",
+        headers={"Server-Timing": server_timing},
+    )
 
 
 @app.post("/v1/score/batch", response_model=BatchScoreResponse, tags=["Scoring"])
@@ -171,18 +244,19 @@ def score_batch_transactions(
 def get_prediction_by_id(transaction_id: str, api_key: str = Depends(get_api_key)):
     """Retrieve historical prediction log from database by transaction_id."""
     db = SessionLocal()
-    entry = db.query(PredictionLog).filter(PredictionLog.transaction_id == transaction_id).first()
-    db.close()
+    try:
+        entry = db.query(PredictionLog).filter(PredictionLog.transaction_id == transaction_id).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Prediction ID not found.")
 
-    if not entry:
-        raise HTTPException(status_code=404, detail="Prediction ID not found.")
-
-    return {
-        "transaction_id": entry.transaction_id,
-        "timestamp": entry.timestamp,
-        "fraud_probability": entry.fraud_probability,
-        "decision": entry.decision,
-        "risk_band": entry.risk_band,
-        "model_version": entry.model_version,
-        "latency_ms": entry.latency_ms,
-    }
+        return {
+            "transaction_id": entry.transaction_id,
+            "timestamp": entry.timestamp,
+            "fraud_probability": entry.fraud_probability,
+            "decision": entry.decision,
+            "risk_band": entry.risk_band,
+            "model_version": entry.model_version,
+            "latency_ms": entry.latency_ms,
+        }
+    finally:
+        db.close()

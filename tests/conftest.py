@@ -1,6 +1,8 @@
-"""Shared test fixtures."""
+import os
 
 import pytest
+
+os.environ.setdefault("APP_ENV", "dev")
 
 
 @pytest.fixture

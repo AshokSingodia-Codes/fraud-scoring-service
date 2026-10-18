@@ -79,7 +79,7 @@ class FeatureBuilder:
         cat_cols = [
             c for c in sample_transformed.columns
             if pd.api.types.is_object_dtype(sample_transformed[c])
-            or pd.api.types.is_categorical_dtype(sample_transformed[c])
+            or isinstance(sample_transformed[c].dtype, pd.CategoricalDtype)
             or pd.api.types.is_string_dtype(sample_transformed[c])
         ]
         self.cat_categories = {}
@@ -102,7 +102,6 @@ class FeatureBuilder:
         # 1. Base time features
         if "TransactionDT" in df.columns:
             dt = df["TransactionDT"].fillna(0)
-            col_dict["day_index"] = (dt // 86400).astype("float32")
             col_dict["hour_of_day"] = ((dt // 3600) % 24).astype("float32")
             col_dict["day_of_week"] = ((dt // 86400) % 7).astype("float32")
 
@@ -140,9 +139,10 @@ class FeatureBuilder:
         col_dict["email_domain_match"] = valid_match
 
         # 4. Card & address combination
-        c1 = df["card1"].astype(str) if "card1" in df.columns else pd.Series("", index=df.index)
-        a1 = df["addr1"].astype(str) if "addr1" in df.columns else pd.Series("", index=df.index)
+        c1 = df["card1"].astype(str).fillna("nan") if "card1" in df.columns else pd.Series("nan", index=df.index)
+        a1 = df["addr1"].astype(str).fillna("nan") if "addr1" in df.columns else pd.Series("nan", index=df.index)
         df_card1_addr1 = c1 + "_" + a1
+        col_dict["card1_addr1"] = df_card1_addr1
 
         # 5. Frequency encodings
         for col in FREQ_COLS:
@@ -160,8 +160,9 @@ class FeatureBuilder:
 
         # 6. Identity missingness flags
         present_id_cols = [c for c in ID_COLS if c in df.columns]
+        missing_id_cols_count = len(ID_COLS) - len(present_id_cols)
         if present_id_cols:
-            col_dict["id_missing_count"] = df[present_id_cols].isnull().sum(axis=1).astype("float32")
+            col_dict["id_missing_count"] = (df[present_id_cols].isnull().sum(axis=1) + missing_id_cols_count).astype("float32")
             col_dict["has_identity"] = (df[present_id_cols].notnull().any(axis=1)).astype("float32")
         else:
             col_dict["id_missing_count"] = float(len(ID_COLS))
@@ -178,18 +179,162 @@ class FeatureBuilder:
 
         return pd.DataFrame(col_dict, index=df.index)
 
+    def _init_fast_structures(self) -> None:
+        """Initialize fast lookup indices and mappings for single-row scoring."""
+        if getattr(self, "_initialized_fast", False):
+            return
+        self._col_to_idx = {name: i for i, name in enumerate(self.final_feature_names)}
+        self._cat_to_code = {
+            col: {cat: float(code) for code, cat in enumerate(cats)}
+            for col, cats in self.cat_categories.items()
+        }
+        self._ignore_cols = set(
+            ["TransactionID", "isFraud", "TransactionDT"] + self.dropped_cols
+            + ["hour_of_day", "day_of_week", "log_TransactionAmt", "amt_cents", "amt_is_round"]
+        )
+        self._initialized_fast = True
+
+    def transform_dict_to_numpy(
+        self, payload: dict[str, Any], out: np.ndarray | None = None
+    ) -> np.ndarray:
+        """Fast-path feature extraction mapping a transaction dictionary to a 2D float32 numpy row.
+
+        Reuses a preallocated numpy buffer, avoiding DataFrame overhead and per-column loops.
+        """
+        self._init_fast_structures()
+        num_cols = len(self.final_feature_names)
+        if out is None:
+            out = np.full((1, num_cols), np.nan, dtype=np.float32)
+        else:
+            out.fill(np.nan)
+
+        col_to_idx = self._col_to_idx
+        cat_to_code = self._cat_to_code
+
+        # 1. Base time features
+        dt = payload.get("TransactionDT")
+        if dt is not None and not pd.isna(dt):
+            if "hour_of_day" in col_to_idx:
+                out[0, col_to_idx["hour_of_day"]] = np.float32((dt // 3600) % 24)
+            if "day_of_week" in col_to_idx:
+                out[0, col_to_idx["day_of_week"]] = np.float32((dt // 86400) % 7)
+
+        # 2. Amount features
+        amt = payload.get("TransactionAmt")
+        if amt is not None and not pd.isna(amt):
+            amt_f = np.float32(amt)
+            if "log_TransactionAmt" in col_to_idx:
+                out[0, col_to_idx["log_TransactionAmt"]] = np.log1p(np.maximum(amt_f, 0.0, dtype=np.float32))
+            if "amt_cents" in col_to_idx:
+                out[0, col_to_idx["amt_cents"]] = np.float32(amt_f % 1.0)
+            if "amt_is_round" in col_to_idx:
+                out[0, col_to_idx["amt_is_round"]] = np.float32(1.0 if (amt_f % 1.0 == 0) else 0.0)
+
+        # 3. Email features
+        p_email = str(payload.get("P_emaildomain", ""))
+        r_email = str(payload.get("R_emaildomain", ""))
+
+        p_prov, p_suff = None, None
+        if p_email and p_email not in ["nan", "None", ""]:
+            parts = p_email.split(".", 1)
+            p_prov = parts[0]
+            if len(parts) > 1:
+                p_suff = parts[1]
+
+        r_prov, r_suff = None, None
+        if r_email and r_email not in ["nan", "None", ""]:
+            parts = r_email.split(".", 1)
+            r_prov = parts[0]
+            if len(parts) > 1:
+                r_suff = parts[1]
+
+        if "P_emaildomain_provider" in col_to_idx and p_prov in cat_to_code.get("P_emaildomain_provider", {}):
+            out[0, col_to_idx["P_emaildomain_provider"]] = cat_to_code["P_emaildomain_provider"][p_prov]
+        if "P_emaildomain_suffix" in col_to_idx and p_suff in cat_to_code.get("P_emaildomain_suffix", {}):
+            out[0, col_to_idx["P_emaildomain_suffix"]] = cat_to_code["P_emaildomain_suffix"][p_suff]
+        if "R_emaildomain_provider" in col_to_idx and r_prov in cat_to_code.get("R_emaildomain_provider", {}):
+            out[0, col_to_idx["R_emaildomain_provider"]] = cat_to_code["R_emaildomain_provider"][r_prov]
+        if "R_emaildomain_suffix" in col_to_idx and r_suff in cat_to_code.get("R_emaildomain_suffix", {}):
+            out[0, col_to_idx["R_emaildomain_suffix"]] = cat_to_code["R_emaildomain_suffix"][r_suff]
+
+        if "email_domain_match" in col_to_idx:
+            p_has = p_email and p_email not in ["nan", "None", ""]
+            r_has = r_email and r_email not in ["nan", "None", ""]
+            match = 1.0 if (p_has and r_has and p_email == r_email) else 0.0
+            out[0, col_to_idx["email_domain_match"]] = np.float32(match)
+
+        # 4. Card & address combination
+        c1_val = payload.get("card1")
+        if c1_val is None or pd.isna(c1_val) or str(c1_val) in ["nan", "None", "<NA>", ""]:
+            c1_str = "nan"
+        else:
+            c1_str = str(c1_val)
+
+        a1_val = payload.get("addr1")
+        if a1_val is None or pd.isna(a1_val) or str(a1_val) in ["nan", "None", "<NA>", ""]:
+            a1_str = "nan"
+        else:
+            try:
+                a1_str = str(float(a1_val))
+            except (ValueError, TypeError):
+                a1_str = str(a1_val)
+        c1_a1_str = f"{c1_str}_{a1_str}"
+
+        if "card1_addr1" in col_to_idx:
+            c1_a1_raw = str(payload.get("card1_addr1")) if "card1_addr1" in payload else c1_a1_str
+            if c1_a1_raw in cat_to_code.get("card1_addr1", {}):
+                out[0, col_to_idx["card1_addr1"]] = cat_to_code["card1_addr1"][c1_a1_raw]
+
+        # 5. Frequency encodings
+        for col, freq_map in self.freq_maps.items():
+            fq_name = f"{col}_fq"
+            if fq_name in col_to_idx:
+                if col == "card1_addr1":
+                    out[0, col_to_idx[fq_name]] = np.float32(freq_map.get(c1_a1_str, 0.0))
+                else:
+                    val = payload.get(col)
+                    out[0, col_to_idx[fq_name]] = np.float32(freq_map.get(val, 0.0)) if (val is not None and not pd.isna(val)) else np.float32(0.0)
+
+        # 6. Identity missingness flags
+        has_id = 0.0
+        missing_count = 0
+        for ic in ID_COLS:
+            ival = payload.get(ic)
+            if ival is not None and not pd.isna(ival):
+                has_id = 1.0
+            else:
+                missing_count += 1
+        if "id_missing_count" in col_to_idx:
+            out[0, col_to_idx["id_missing_count"]] = np.float32(missing_count)
+        if "has_identity" in col_to_idx:
+            out[0, col_to_idx["has_identity"]] = np.float32(has_id)
+
+        # 7. Remaining raw features
+        ignore_cols = self._ignore_cols
+        for k, v in payload.items():
+            if k in ignore_cols:
+                continue
+            if k in col_to_idx:
+                idx = col_to_idx[k]
+                if k in cat_to_code:
+                    s_val = str(v)
+                    if s_val in cat_to_code[k]:
+                        out[0, idx] = cat_to_code[k][s_val]
+                else:
+                    try:
+                        out[0, idx] = np.float32(v) if (v is not None and not pd.isna(v)) else np.nan
+                    except (ValueError, TypeError):
+                        out[0, idx] = np.nan
+
+        return out
+
     def _apply_categoricals(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Cast categorical columns using stored categories and ensure no object dtypes remain."""
-        df = df.copy()
-        for col in df.columns:
-            if col in self.cat_categories:
-                cats = self.cat_categories[col]
+        """Cast categorical columns using stored categories and ensure float32 numeric columns."""
+        for col, cats in self.cat_categories.items():
+            if col in df.columns:
                 series_str = df[col].astype(str).replace({"nan": None, "None": None, "<NA>": None})
+                series_str = series_str.where(series_str.isin(cats), None)
                 df[col] = pd.Categorical(series_str, categories=cats, ordered=False)
-            elif pd.api.types.is_object_dtype(df[col]) or pd.api.types.is_string_dtype(df[col]):
-                df[col] = pd.to_numeric(df[col], errors="coerce").astype("float32")
-            elif pd.api.types.is_float_dtype(df[col]):
-                df[col] = df[col].astype("float32")
         return df
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -198,15 +343,8 @@ class FeatureBuilder:
             raise ValueError("FeatureBuilder must be fit before transform can be called.")
 
         transformed = self._transform_raw(df)
-
-        # Fast align columns with final_feature_names
-        missing_cols = [c for c in self.final_feature_names if c not in transformed.columns]
-        if missing_cols:
-            missing_df = pd.DataFrame(np.nan, index=transformed.index, columns=missing_cols)
-            transformed = pd.concat([transformed, missing_df], axis=1)
-
+        transformed = transformed.reindex(columns=self.final_feature_names, fill_value=np.nan)
         transformed = self._apply_categoricals(transformed)
-        transformed = transformed[self.final_feature_names]
         return transformed
 
     def save(self, joblib_path: str | Path, spec_path: str | Path) -> None:

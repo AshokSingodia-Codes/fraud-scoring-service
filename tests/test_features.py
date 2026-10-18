@@ -63,7 +63,7 @@ def test_feature_builder_fit_transform(sample_train_df, sample_test_df):
     assert "TransactionID" not in train_ft.columns
 
     # Verify engineered features exist
-    assert "day_index" in train_ft.columns
+    assert "day_index" not in train_ft.columns
     assert "hour_of_day" in train_ft.columns
     assert "log_TransactionAmt" in train_ft.columns
     assert "card1_fq" in train_ft.columns
@@ -107,3 +107,19 @@ def test_feature_builder_save_load(sample_train_df):
         loaded_fb = FeatureBuilder.load(j_path)
         assert loaded_fb.is_fitted
         assert loaded_fb.final_feature_names == fb.final_feature_names
+
+
+def test_feature_builder_unseen_category_explicit_nan(sample_train_df):
+    """Verify unseen category value is explicitly converted to NaN without Pandas4Warning."""
+    import warnings
+    fb = FeatureBuilder()
+    fb.fit(sample_train_df)
+
+    test_df = sample_train_df.iloc[[0]].copy()
+    test_df["ProductCD"] = "COMPLETELY_UNSEEN_PRODUCT_999"
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        transformed = fb.transform(test_df)
+
+    assert pd.isna(transformed["ProductCD"].iloc[0])
