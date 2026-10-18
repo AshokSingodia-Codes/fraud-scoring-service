@@ -186,10 +186,10 @@ def run_pipeline_evaluation(config_path: str | Path | None = None) -> dict:
         with ablation_path.open("r", encoding="utf-8") as af:
             ablation_json = json.load(af)
 
-    stage6_json = {}
+    _stage6_json = {}
     if stage6_path.exists():
         with stage6_path.open("r", encoding="utf-8") as sf:
-            stage6_json = json.load(sf)
+            _stage6_json = json.load(sf)
 
     val_eval = evaluate_all_metrics(y_val, val_cal_probs)
     test_eval = evaluate_all_metrics(y_test, test_cal_probs)
@@ -266,9 +266,9 @@ def run_pipeline_evaluation(config_path: str | Path | None = None) -> dict:
         f.write("\n")
 
         f.write("## 7. Key Findings & Operational Recommendations\n\n")
-        f.write("1. **Time-Based Leakage Safety:** Time-based splitting provides realistic fraud performance evaluation (~0.5343 PR-AUC) without look-ahead data leakage.\n")
-        f.write("2. **Calibration Efficiency:** Isotonic calibration effectively eliminates over-confident probability spikes, reducing ECE to 0.0041.\n")
-        f.write("3. **Drift Monitoring:** High drift observed in time tracking features (`day_index` PSI = 11.51) confirms that relative time features should be isolated or normalized prior to continuous retraining.\n")
+        f.write("1. **Time-Based Leakage Safety:** Time-based splitting provides realistic fraud performance evaluation without look-ahead data leakage.\n")
+        f.write("2. **Calibration Efficiency:** Isotonic calibration effectively eliminates over-confident probability spikes, reducing ECE significantly.\n")
+        f.write("3. **Drift Monitoring:** Removal of non-stationary time index (`day_index`) eliminates artificial temporal feature drift, ensuring robust generalizability across time splits.\n")
 
     print(f"Evaluation report written to {eval_report_path}")
     return {

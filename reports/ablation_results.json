@@ -1,0 +1,144 @@
+{
+  "drift_analysis": {
+    "a_start_rps_mean": 196.6,
+    "a_end_rps_mean": 198.9,
+    "drift_diff": 2.3,
+    "status": "Stable (within noise spread)",
+    "baseline_std": 35.3,
+    "minimum_detectable_effect_rps": 71.0
+  },
+  "variants": [
+    {
+      "variant": "A. Baseline at start (4 workers, ANYIO_MAX_THREADS=40)",
+      "workers": 4,
+      "env": {
+        "ANYIO_MAX_THREADS": "40"
+      },
+      "repeats": 5,
+      "rps_mean": 196.6,
+      "rps_std": 35.3,
+      "rps_min": 168.0,
+      "rps_max": 262.6,
+      "p50_mean": 154.83,
+      "p95_mean": 474.61,
+      "total_errors": 0,
+      "raw_rps": [
+        168.0,
+        176.8,
+        203.8,
+        262.6,
+        171.9
+      ]
+    },
+    {
+      "variant": "D. AnyIO thread limit 200 (4 workers)",
+      "workers": 4,
+      "env": {
+        "ANYIO_MAX_THREADS": "200"
+      },
+      "repeats": 5,
+      "rps_mean": 186.8,
+      "rps_std": 31.0,
+      "rps_min": 135.5,
+      "rps_max": 225.7,
+      "p50_mean": 152.24,
+      "p95_mean": 525.01,
+      "total_errors": 0,
+      "raw_rps": [
+        135.5,
+        171.7,
+        225.7,
+        195.6,
+        205.5
+      ]
+    },
+    {
+      "variant": "C. 2 workers (ANYIO_MAX_THREADS=40)",
+      "workers": 2,
+      "env": {
+        "ANYIO_MAX_THREADS": "40"
+      },
+      "repeats": 5,
+      "rps_mean": 207.1,
+      "rps_std": 25.2,
+      "rps_min": 171.9,
+      "rps_max": 245.3,
+      "p50_mean": 149.7,
+      "p95_mean": 424.59,
+      "total_errors": 0,
+      "raw_rps": [
+        215.8,
+        171.9,
+        213.8,
+        188.5,
+        245.3
+      ]
+    },
+    {
+      "variant": "E. AnyIO thread limit 80 (4 workers)",
+      "workers": 4,
+      "env": {
+        "ANYIO_MAX_THREADS": "80"
+      },
+      "repeats": 5,
+      "rps_mean": 175.8,
+      "rps_std": 31.0,
+      "rps_min": 120.9,
+      "rps_max": 205.8,
+      "p50_mean": 179.91,
+      "p95_mean": 433.12,
+      "total_errors": 0,
+      "raw_rps": [
+        163.9,
+        120.9,
+        205.8,
+        200.9,
+        187.3
+      ]
+    },
+    {
+      "variant": "B. 1 worker (ANYIO_MAX_THREADS=40)",
+      "workers": 1,
+      "env": {
+        "ANYIO_MAX_THREADS": "40"
+      },
+      "repeats": 5,
+      "rps_mean": 218.7,
+      "rps_std": 22.5,
+      "rps_min": 187.7,
+      "rps_max": 247.8,
+      "p50_mean": 134.79,
+      "p95_mean": 397.34,
+      "total_errors": 0,
+      "raw_rps": [
+        206.7,
+        187.7,
+        241.2,
+        210.1,
+        247.8
+      ]
+    },
+    {
+      "variant": "A. Baseline at end (4 workers, ANYIO_MAX_THREADS=40)",
+      "workers": 4,
+      "env": {
+        "ANYIO_MAX_THREADS": "40"
+      },
+      "repeats": 5,
+      "rps_mean": 198.9,
+      "rps_std": 39.0,
+      "rps_min": 152.5,
+      "rps_max": 253.3,
+      "p50_mean": 158.59,
+      "p95_mean": 501.67,
+      "total_errors": 0,
+      "raw_rps": [
+        160.5,
+        197.7,
+        230.7,
+        253.3,
+        152.5
+      ]
+    }
+  ]
+}

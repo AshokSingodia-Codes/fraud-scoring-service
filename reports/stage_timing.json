@@ -1,0 +1,153 @@
+{
+  "metadata": {
+    "target": "real uvicorn server (single laptop, loopback, 4 workers)",
+    "server_url": "http://127.0.0.1:8000",
+    "concurrency": 1,
+    "validation_rows": 200,
+    "timestamp": "2026-10-18T22:16:22Z"
+  },
+  "explain_false": {
+    "request_validation": {
+      "p50_ms": 0.48,
+      "p95_ms": 1.02,
+      "mean_ms": 0.54
+    },
+    "auth": {
+      "p50_ms": 0.03,
+      "p95_ms": 0.04,
+      "mean_ms": 0.03
+    },
+    "ratelimit": {
+      "p50_ms": 0.04,
+      "p95_ms": 0.06,
+      "mean_ms": 0.04
+    },
+    "feature_build": {
+      "p50_ms": 0.79,
+      "p95_ms": 1.21,
+      "mean_ms": 0.78
+    },
+    "predict": {
+      "p50_ms": 0.69,
+      "p95_ms": 0.95,
+      "mean_ms": 0.7
+    },
+    "calibrate": {
+      "p50_ms": 0.09,
+      "p95_ms": 0.11,
+      "mean_ms": 0.09
+    },
+    "shap": {
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "mean_ms": 0.0
+    },
+    "reasons_build": {
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "mean_ms": 0.0
+    },
+    "audit_write": {
+      "p50_ms": 0.04,
+      "p95_ms": 0.06,
+      "mean_ms": 0.04
+    },
+    "serialization": {
+      "p50_ms": 0.06,
+      "p95_ms": 0.09,
+      "mean_ms": 0.07
+    },
+    "total_handler": {
+      "p50_ms": 2.46,
+      "p95_ms": 3.39,
+      "mean_ms": 2.43
+    },
+    "client_observed": {
+      "p50_ms": 6.22,
+      "p95_ms": 7.64,
+      "mean_ms": 6.27
+    },
+    "client_minus_total_handler": {
+      "p50_ms": 3.79,
+      "p95_ms": 4.6,
+      "mean_ms": 3.83
+    },
+    "total_handler_minus_sum_stages": {
+      "p50_ms": 0.15,
+      "p95_ms": 0.19,
+      "mean_ms": 0.14
+    }
+  },
+  "explain_true": {
+    "request_validation": {
+      "p50_ms": 0.55,
+      "p95_ms": 0.98,
+      "mean_ms": 0.59
+    },
+    "auth": {
+      "p50_ms": 0.03,
+      "p95_ms": 0.05,
+      "mean_ms": 0.03
+    },
+    "ratelimit": {
+      "p50_ms": 0.07,
+      "p95_ms": 0.14,
+      "mean_ms": 0.08
+    },
+    "feature_build": {
+      "p50_ms": 0.89,
+      "p95_ms": 1.42,
+      "mean_ms": 0.9
+    },
+    "predict": {
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "mean_ms": 0.0
+    },
+    "calibrate": {
+      "p50_ms": 0.08,
+      "p95_ms": 0.21,
+      "mean_ms": 0.1
+    },
+    "shap": {
+      "p50_ms": 67.06,
+      "p95_ms": 110.16,
+      "mean_ms": 73.09
+    },
+    "reasons_build": {
+      "p50_ms": 0.24,
+      "p95_ms": 0.5,
+      "mean_ms": 0.29
+    },
+    "audit_write": {
+      "p50_ms": 0.04,
+      "p95_ms": 0.06,
+      "mean_ms": 0.04
+    },
+    "serialization": {
+      "p50_ms": 0.12,
+      "p95_ms": 0.21,
+      "mean_ms": 0.13
+    },
+    "total_handler": {
+      "p50_ms": 69.29,
+      "p95_ms": 113.44,
+      "mean_ms": 75.45
+    },
+    "client_observed": {
+      "p50_ms": 73.48,
+      "p95_ms": 120.51,
+      "mean_ms": 80.55
+    },
+    "client_minus_total_handler": {
+      "p50_ms": 4.22,
+      "p95_ms": 6.95,
+      "mean_ms": 5.11
+    },
+    "total_handler_minus_sum_stages": {
+      "p50_ms": 0.18,
+      "p95_ms": 0.26,
+      "mean_ms": 0.19
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "num_rows_evaluated": 6100,
+  "cohorts": {
+    "random_sample_5k": 5000,
+    "validation_split": 1000,
+    "synthetic_unseen": 100
+  },
+  "features_evaluated": 456,
+  "max_abs_feature_matrix_diff": 1.2207031261368684e-05,
+  "nan_mask_mismatches": 0,
+  "max_abs_raw_probability_diff": 0.0,
+  "max_abs_calibrated_probability_diff": 0.0,
+  "max_abs_shap_diff": 0.0,
+  "decision_flips": 0,
+  "decision_flips_pct": 0.0,
+  "top5_reason_sample_size": 500,
+  "top5_reason_mismatches": 0,
+  "status": "PASS",
+  "perturbed_self_test": false
+}
