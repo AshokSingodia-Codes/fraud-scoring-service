@@ -1,6 +1,5 @@
 {
   "final_feature_names": [
-    "day_index",
     "hour_of_day",
     "day_of_week",
     "log_TransactionAmt",
@@ -459,7 +458,6 @@
     "card1_addr1"
   ],
   "feature_dtypes": {
-    "day_index": "float32",
     "hour_of_day": "float32",
     "day_of_week": "float32",
     "log_TransactionAmt": "float32",
@@ -932,5 +930,5 @@
     "id_33",
     "card1_addr1"
   ],
-  "num_features": 457
+  "num_features": 456
 }
