@@ -135,64 +135,44 @@ export default function CheckOnePage({ onToast }) {
   }));
 
   return (
-    <div className="space-y-8 py-2">
-      {/* Page Title & Context Header */}
+    <div className="space-y-6 py-2">
+      {/* Title */}
       <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Check One Transaction
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          Single Transaction Check
         </h1>
-        <p className="text-sm text-slate-600">
-          Evaluate an individual credit card purchase in real time to calculate fraud probability and clear recommendations.
+        <p className="text-xs sm:text-sm text-slate-600">
+          Score a transaction to get instant fraud probability, decision tier, and SHAP reason codes.
         </p>
       </div>
 
-      {/* What You Need / What You Get Back Explainer */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1.5">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-            What you need to provide
-          </span>
-          <p className="text-xs text-slate-600">
-            A Transaction ID, purchase amount in USD, card information, buyer email address, and device type.
-          </p>
-        </div>
-        <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1.5">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-            What you will get back
-          </span>
-          <p className="text-xs text-slate-600">
-            An automated decision (<strong>Approve</strong>, <strong>Review</strong>, or <strong>Block</strong>), calibrated risk percentage, and top contributing factors in plain language.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Form */}
-        <div className="lg:col-span-7 card-clean p-6 sm:p-7 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+        <div className="lg:col-span-7 card-clean p-6 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Transaction Information</h2>
-              <p className="text-xs text-slate-500">Fill in the fields or choose a quick sample below</p>
+              <h2 className="text-sm font-bold text-slate-900">Transaction Fields</h2>
+              <p className="text-xs text-slate-500">Enter transaction facts or use a quick preset</p>
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => handleFillSample(PRESET_SAFE)}
-                className="text-xs px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold transition-colors"
-                title="Fill with standard, low-risk transaction attributes"
+                className="text-xs px-2.5 py-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 font-medium transition-colors"
               >
-                Safe Sample
+                Safe Preset
               </button>
               <button
                 type="button"
                 onClick={() => handleFillSample(PRESET_SUSPICIOUS)}
-                className="text-xs px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 font-semibold transition-colors"
-                title="Fill with high-risk, suspicious transaction attributes"
+                className="text-xs px-2.5 py-1 rounded-md border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium transition-colors"
               >
-                Suspicious Sample
+                Fraud Preset
               </button>
             </div>
           </div>
+
+
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Row 1: ID & Amount */}
@@ -439,97 +419,97 @@ export default function CheckOnePage({ onToast }) {
         {/* Right Column: Result Presentation */}
         <div className="lg:col-span-5 space-y-6">
           {!result && !loading && (
-            <div className="card-clean p-10 text-center space-y-4 text-slate-500">
-              <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mx-auto">
-                <ShieldCheck className="w-7 h-7" />
+            <div className="card-clean p-8 text-center space-y-3 text-slate-500">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mx-auto">
+                <ShieldCheck className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-slate-800 text-base">Ready to Score</h3>
+                <h3 className="font-bold text-slate-800 text-sm">Ready to Score</h3>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Enter details on the left and click "Check Transaction Risk Now" to view automated action and explanations.
+                  Click "Check Transaction Risk Now" to score and view decision recommendations.
                 </p>
               </div>
             </div>
           )}
 
           {loading && (
-            <div className="card-clean p-10 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-              <div className="space-y-1">
-                <h3 className="font-bold text-slate-800 text-base">Running AI Analysis...</h3>
-                <p className="text-xs text-slate-500">Extracting 457 features and computing SHAP reason codes.</p>
+            <div className="card-clean p-8 text-center space-y-3">
+              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="space-y-0.5">
+                <h3 className="font-bold text-slate-800 text-sm">Evaluating Risk...</h3>
+                <p className="text-xs text-slate-500">Computing probability and SHAP factors.</p>
               </div>
             </div>
           )}
 
           {result && !loading && (
-            <div className="card-clean p-6 sm:p-7 space-y-6 animate-in fade-in duration-200">
+            <div className="card-clean p-6 space-y-5 animate-in fade-in duration-150">
               {/* Decision Header Banner */}
-              <div className={`p-5 rounded-2xl border ${badgeInfo.bgLight} ${badgeInfo.border} space-y-3`}>
+              <div className={`p-4 rounded-xl border ${badgeInfo.bgLight} ${badgeInfo.border} space-y-2`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-semibold">
+                  <span className="text-xs font-mono uppercase text-slate-600 font-semibold">
                     ID: {result.transaction_id}
                   </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${badgeInfo.colorClass}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${badgeInfo.colorClass}`}>
                     {badgeInfo.label}
                   </span>
                 </div>
 
                 <div>
-                  <h3 className={`text-xl font-extrabold ${badgeInfo.text}`}>
-                    {result.decision.toUpperCase() === 'APPROVE' && 'Transaction Cleared'}
-                    {result.decision.toUpperCase() === 'REVIEW' && 'Manual Review Recommended'}
-                    {result.decision.toUpperCase() === 'BLOCK' && 'Transaction Declined (High Risk)'}
+                  <h3 className={`text-lg font-bold ${badgeInfo.text}`}>
+                    {result.decision.toUpperCase() === 'APPROVE' && 'Approve'}
+                    {result.decision.toUpperCase() === 'REVIEW' && 'Manual Review'}
+                    {result.decision.toUpperCase() === 'BLOCK' && 'Block'}
                   </h3>
-                  <p className="text-xs text-slate-600 mt-1">
+                  <p className="text-xs text-slate-700 mt-0.5">
                     {badgeInfo.description}
                   </p>
                 </div>
               </div>
 
-              {/* Gauge & Key Numbers */}
-              <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+              {/* Numbers */}
+              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
                 <div>
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Fraud Probability
+                    Fraud Risk
                   </span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className="text-2xl sm:text-3xl font-black text-slate-900">{probPct}%</span>
-                    <span className="text-xs text-slate-400">risk</span>
+                    <span className="text-2xl font-black text-slate-900">{probPct}%</span>
                   </div>
                 </div>
 
                 <div>
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Risk Category
+                    Assigned Tier
                   </span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className="text-2xl sm:text-3xl font-black text-slate-900">{result.risk_band}</span>
+                    <span className="text-2xl font-black text-slate-900">{result.risk_band}</span>
                   </div>
                 </div>
               </div>
 
+
               {/* Plain-English Top Reasons */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Top Contributing Factors
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Top Contributing SHAP Factors
                   </h4>
-                  <span className="text-[11px] text-slate-400 font-medium">Why the AI reached this result</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Tree margin influence</span>
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {(result.reasons || []).slice(0, 5).map((r, i) => {
                     const isRisk = r.direction === 'increases_risk' || r.contribution > 0;
                     return (
                       <div
                         key={i}
-                        className={`p-3 rounded-xl border text-xs space-y-1 ${
-                          isRisk ? 'bg-rose-50/50 border-rose-100' : 'bg-emerald-50/50 border-emerald-100'
+                        className={`p-3 rounded-lg border text-xs space-y-1 ${
+                          isRisk ? 'bg-rose-50/60 border-rose-100' : 'bg-emerald-50/60 border-emerald-100'
                         }`}
                       >
                         <div className="flex items-center justify-between font-bold">
-                          <span className="text-slate-800 flex items-center gap-1.5">
+                          <span className="text-slate-900 flex items-center gap-1.5">
                             {isRisk ? (
                               <ArrowUpRight className="w-3.5 h-3.5 text-rose-600" />
                             ) : (
@@ -537,7 +517,7 @@ export default function CheckOnePage({ onToast }) {
                             )}
                             {r.label || r.feature}
                           </span>
-                          <span className={isRisk ? 'text-rose-700' : 'text-emerald-700'}>
+                          <span className={isRisk ? 'text-rose-600 font-semibold' : 'text-emerald-700 font-semibold'}>
                             {isRisk ? '+ Raised Risk' : '- Lowered Risk'}
                           </span>
                         </div>
@@ -553,7 +533,7 @@ export default function CheckOnePage({ onToast }) {
               {/* Mini Contribution Chart */}
               {chartData.length > 0 && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                     Factor Impact Weights (SHAP Analysis)
                   </span>
                   <div className="h-32 w-full">
@@ -563,12 +543,12 @@ export default function CheckOnePage({ onToast }) {
                         <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10, fill: '#64748b' }} />
                         <Tooltip
                           formatter={(val) => [`Impact: ${val}`, 'Contribution']}
-                          contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }}
+                          contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a', fontSize: '11px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
                         />
                         <ReferenceLine x={0} stroke="#cbd5e1" />
                         <Bar dataKey="contribution" radius={[4, 4, 4, 4]}>
                           {chartData.map((entry, idx) => (
-                            <Cell key={idx} fill={entry.isRisk ? '#f43f5e' : '#10b981'} />
+                            <Cell key={idx} fill={entry.isRisk ? '#e11d48' : '#059669'} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -576,6 +556,51 @@ export default function CheckOnePage({ onToast }) {
                   </div>
                 </div>
               )}
+
+              {/* Real-Time Rolling Velocity Metrics */}
+              {result.velocity_features && Object.keys(result.velocity_features).length > 0 && (
+                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      Live Redis Velocity Store
+                    </span>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Sub-2ms Ingestion
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-xs">
+                      <div className="text-[10px] text-slate-500 font-medium">10 Min Window</div>
+                      <div className="font-bold text-slate-900 mt-0.5">
+                        {result.velocity_features.card1_tx_cnt_10m || 0} tx
+                      </div>
+                      <div className="text-[10px] text-indigo-600 font-mono">
+                        ${(result.velocity_features.card1_amt_sum_10m || 0).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-xs">
+                      <div className="text-[10px] text-slate-500 font-medium">1 Hour Window</div>
+                      <div className="font-bold text-slate-900 mt-0.5">
+                        {result.velocity_features.card1_tx_cnt_1h || 0} tx
+                      </div>
+                      <div className="text-[10px] text-indigo-600 font-mono">
+                        ${(result.velocity_features.card1_amt_sum_1h || 0).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-xs">
+                      <div className="text-[10px] text-slate-500 font-medium">24 Hour Window</div>
+                      <div className="font-bold text-slate-900 mt-0.5">
+                        {result.velocity_features.card1_tx_cnt_24h || 0} tx
+                      </div>
+                      <div className="text-[10px] text-indigo-600 font-mono">
+                        ${(result.velocity_features.card1_amt_sum_24h || 0).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
               {/* Action Buttons: Download PDF & Save Report */}
               <div className="pt-2 flex flex-col sm:flex-row gap-2">

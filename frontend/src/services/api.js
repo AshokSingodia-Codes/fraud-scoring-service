@@ -110,6 +110,34 @@ export async function getModelInfo() {
 }
 
 /**
+ * Fetch real-time drift metrics and model health
+ */
+export async function getModelDrift() {
+  const client = createClient();
+  try {
+    const res = await client.get('/v1/model/drift');
+    return res.data;
+  } catch (err) {
+    throw parseApiError(err);
+  }
+}
+
+/**
+ * Fetch Champion vs Challenger shadow deployment telemetry
+ */
+export async function getShadowModelStatus() {
+  const client = createClient();
+  try {
+    const res = await client.get('/v1/model/shadow');
+    return res.data;
+  } catch (err) {
+    throw parseApiError(err);
+  }
+}
+
+
+
+/**
  * Formats API errors into helpful plain English
  */
 function parseApiError(err) {

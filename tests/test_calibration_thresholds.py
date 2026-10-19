@@ -96,3 +96,59 @@ def test_fit_split_not_test():
         assert getattr(cal, "fit_split", None) != "test", "Calibrator was fit on the test split!"
         assert getattr(cal, "fit_split", None) == "validation"
 
+
+@pytest.mark.slow
+def test_evaluate_pipeline_out_dir_leaves_models_clean():
+    import subprocess
+    import sys
+
+
+    # Get git status of models/ before running
+    res_before = subprocess.run(["git", "status", "--porcelain", "models/"], capture_output=True, text=True)
+    assert res_before.returncode == 0
+    status_before = res_before.stdout.strip()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cmd = [sys.executable, "scripts/evaluate_pipeline.py", "--out-dir", tmpdir]
+        run_res = subprocess.run(cmd, capture_output=True, text=True)
+        assert run_res.returncode == 0, f"evaluate_pipeline failed: {run_res.stderr}"
+
+        # Assert output files exist in out_dir
+        out_path = Path(tmpdir)
+        assert (out_path / "metrics_test_stage6.json").exists()
+        assert (out_path / "calibrator.joblib").exists()
+        assert (out_path / "thresholds.json").exists()
+
+    # Get git status of models/ after running
+    res_after = subprocess.run(["git", "status", "--porcelain", "models/"], capture_output=True, text=True)
+    assert res_after.returncode == 0
+    status_after = res_after.stdout.strip()
+
+    assert status_after == status_before, f"models/ git status changed! Before: '{status_before}', After: '{status_after}'"
+
+
+def test_interp_calibrate_vs_isotonic_transform():
+    """Assert np.interp calibrate matches IsotonicRegression.transform on knots & 100k random scores."""
+    rng = np.random.RandomState(42)
+    y = rng.binomial(1, 0.05, 5000)
+    raw = rng.uniform(0, 1, 5000)
+
+    cal = ProbabilityCalibrator()
+    cal.fit(y, raw)
+
+    # 1. On all knots
+    knots_x = cal.calibrator.f_.x
+    interp_knots = cal.calibrate(knots_x)
+    sk_knots = cal.calibrator.transform(knots_x)
+    diff_knots = float(np.max(np.abs(interp_knots - sk_knots)))
+    assert diff_knots <= 1e-12, f"Knot difference {diff_knots} exceeds 1e-12"
+
+    # 2. On 100,000 random scores
+    test_scores = rng.uniform(0, 1, 100000)
+    interp_rand = cal.calibrate(test_scores)
+    sk_rand = cal.calibrator.transform(test_scores)
+    diff_rand = float(np.max(np.abs(interp_rand - sk_rand)))
+    assert diff_rand <= 1e-12, f"100k random scores difference {diff_rand} exceeds 1e-12"
+
+
+

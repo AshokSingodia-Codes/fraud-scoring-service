@@ -1,6 +1,7 @@
 """Predictor service class loading artifacts once at startup (Stage 10)."""
 
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,32 @@ class FraudPredictor:
         if not (fb_path.exists() and model_path.exists()):
             raise FileNotFoundError(f"Model artifacts missing in {base_models_dir}. Run training pipeline first.")
 
+        manifest_path = base_models_dir / "manifest.json"
+        app_env = os.getenv("APP_ENV", "dev").strip().lower()
+        if not manifest_path.exists():
+            if app_env == "prod":
+                raise ValueError("Manifest integrity failure: manifest.json missing in production environment.")
+            else:
+                import logging
+                logging.getLogger(__name__).warning("manifest.json missing in %s; skipping integrity check in %s mode.", base_models_dir, app_env)
+        else:
+            import hashlib
+            with manifest_path.open("r", encoding="utf-8") as mf:
+                manifest_data = json.load(mf)
+            expected_hashes = manifest_data.get("sha256", {})
+            for fname, exp_hash in expected_hashes.items():
+                target_f = base_models_dir / fname
+                if not target_f.exists():
+                    raise ValueError(f"Manifest integrity failure: file {fname} declared in manifest missing on disk.")
+                actual_hash = hashlib.sha256(target_f.read_bytes()).hexdigest()
+                if actual_hash != exp_hash:
+                    raise ValueError(
+                        f"Manifest integrity failure for {fname}: expected SHA-256 {exp_hash}, got {actual_hash}"
+                    )
+
         self.feature_builder = FeatureBuilder.load(fb_path)
+
+
         self.booster = lgb.Booster(model_file=str(model_path))
 
         if cal_path.exists():
@@ -63,8 +89,17 @@ class FraudPredictor:
 
         tx_id = str(payload.get("transaction_id", "unknown"))
 
-        # 1. Feature build
+        # 1. Feature build & online velocity store lookup
         t0 = time.perf_counter()
+        card_id = payload.get("card1")
+        card_str = str(card_id) if card_id is not None and not (isinstance(card_id, float) and np.isnan(card_id)) else None
+        tx_dt = payload.get("TransactionDT")
+        current_time = float(tx_dt) if tx_dt is not None else None
+
+        from src.fraud.features.velocity import get_velocity_store
+        velocity_store = get_velocity_store()
+        velocity_features = velocity_store.get_features(card_str, current_time=current_time)
+
         features_mat = self.feature_builder.transform_dict_to_numpy(payload, out=self._row_buffer)
         t_feat = (time.perf_counter() - t0) * 1000.0
 
@@ -119,6 +154,7 @@ class FraudPredictor:
             "reasons": reasons,
             "model_version": self.model_version,
             "thresholds": {"t_review": self.t_review, "t_block": self.t_block},
+            "velocity_features": velocity_features,
             "latency_ms": latency_ms,
         }
 

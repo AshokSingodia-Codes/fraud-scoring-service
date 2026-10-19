@@ -1,5 +1,6 @@
 """Integration tests for FastAPI endpoints (Stage 10)."""
 
+import pytest
 from fastapi.testclient import TestClient
 from src.fraud.serving.app import app
 
@@ -167,6 +168,58 @@ def test_training_serving_parity():
     prob_batch = res_batch.json()["results"][0]["fraud_probability"]
 
     assert prob_single == prob_batch
+
+
+@pytest.mark.slow
+def test_http_level_parity_on_500_test_rows(monkeypatch):
+    """Post 500 real test partition transactions as JSON over HTTP vs batch, assert max diff <= 1e-6 and 0 tier flips."""
+    from pathlib import Path
+
+    import numpy as np
+    import pandas as pd
+    from src.fraud.data.split import time_split_data
+    from src.fraud.models.threshold import make_decision
+    from src.fraud.serving.predictor import FraudPredictor
+
+    parquet_file = Path("data/interim/train_merged.parquet")
+    if not parquet_file.exists():
+        pytest.skip("Test parquet data/interim/train_merged.parquet absent")
+
+    monkeypatch.setenv("APP_ENV", "dev")
+    df = pd.read_parquet(parquet_file)
+    _, _, test_df = time_split_data(df)
+    sample_500 = test_df.head(500)
+
+    predictor = FraudPredictor()
+    mat = predictor.feature_builder.transform(sample_500)
+    raw = predictor.booster.predict(mat, num_threads=1)
+    cal = predictor.calibrator.calibrate(raw)
+    served_batch = np.round(cal, 4)
+    batch_decisions = [make_decision(p, predictor.t_review, predictor.t_block) for p in served_batch]
+
+    http_client = TestClient(app)
+    headers = {"X-API-Key": "demo-api-key-12345"}
+    records = sample_500.to_dict(orient="records")
+
+    http_probs = []
+    http_decisions = []
+    for r in records:
+        clean_r = {k: v for k, v in r.items() if pd.notna(v)}
+        clean_r["transaction_id"] = str(clean_r.get("TransactionID", "tx_test"))
+        res = http_client.post("/v1/score?explain=false", headers=headers, json=clean_r)
+        assert res.status_code == 200, res.text
+        data = res.json()
+        http_probs.append(data["fraud_probability"])
+        http_decisions.append(data["decision"])
+
+    http_probs = np.array(http_probs)
+    diffs = np.abs(http_probs - served_batch)
+    max_diff = float(np.max(diffs))
+    flips = sum(d1 != d2 for d1, d2 in zip(http_decisions, batch_decisions))
+
+    assert max_diff <= 1e-6, f"HTTP vs batch max diff {max_diff} exceeds 1e-6"
+    assert flips == 0, f"HTTP vs batch had {flips} tier flips"
+
 
 
 

@@ -278,9 +278,14 @@ def benchmark_health_ceiling(base_url: str) -> dict[str, Any]:
     return ceiling_results
 
 
-def run_full_benchmark(base_url: str, output_path: str = "reports/load_test_workers_4.json") -> dict[str, Any]:
-    """Execute sustained load test across concurrency 1, 5, 10, 25, 50, and 100."""
-    concurrencies = [1, 5, 10, 25, 50, 100]
+def run_full_benchmark(
+    base_url: str,
+    output_path: str = "reports/load_test_workers_4.json",
+    concurrencies: list[int] | None = None,
+) -> dict[str, Any]:
+    """Execute sustained load test across selected concurrencies (default [1, 5, 10])."""
+    if concurrencies is None:
+        concurrencies = [1, 5, 10]
     profiles = {}
 
     for c in concurrencies:

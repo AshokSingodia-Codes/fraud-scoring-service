@@ -21,7 +21,9 @@ data:
 
 cost:
   fp_review_cost: 10.0
+  block_fp_cost: 25.0
   fn_cost_type: "transaction_amt"
+
 
 thresholds:
   t_review: 0.15

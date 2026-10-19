@@ -28,11 +28,18 @@ jobs:
         run: |
           ruff check .
 
+      - name: Verify Artifact Consistency & Integrity
+        env:
+          PYTHONPATH: .
+        run: |
+          python scripts/check_artifact_consistency.py
+
       - name: Run Pytest Suite
         env:
           PYTHONPATH: .
         run: |
           pytest tests/
+
 
   docker-build:
     runs-on: ubuntu-latest

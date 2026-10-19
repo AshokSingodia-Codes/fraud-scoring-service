@@ -48,7 +48,10 @@ class ScoreResponse(BaseModel):
     reasons: list[ReasonItem] = []
     model_version: str
     thresholds: dict[str, float]
+    velocity_features: dict[str, float] = {}
+    shadow_evaluation: dict[str, Any] | None = None
     latency_ms: float
+
 
 
 class BatchScoreRequest(BaseModel):

@@ -2,8 +2,11 @@ import logging
 import os
 import sys
 import time
+from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, os.path.abspath("."))
+
 
 # Ensure single-threaded BLAS to prevent thread context allocation failures under concurrency
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
@@ -15,13 +18,18 @@ from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from src.fraud.evaluation.streaming_drift import get_drift_monitor
 from src.fraud.serving.auth import get_api_key
 from src.fraud.serving.db import PredictionLog, SessionLocal, init_db, log_prediction_to_db
 from src.fraud.serving.metrics import (
     DECISION_COUNT,
+    FEATURE_PSI,
+    MODEL_HEALTH_STATUS,
     PREDICTION_SCORE,
     REQUEST_COUNT,
     REQUEST_LATENCY,
+    SHADOW_EVALUATIONS,
+    SHADOW_SCORE_DIVERGENCE,
 )
 from src.fraud.serving.predictor import FraudPredictor
 from src.fraud.serving.ratelimit import check_rate_limit
@@ -35,10 +43,11 @@ from src.fraud.serving.schemas import (
 
 logger = logging.getLogger(__name__)
 predictor: FraudPredictor | None = None
+challenger_predictor: FraudPredictor | None = None
 
 
 def get_predictor() -> FraudPredictor:
-    """Get loaded predictor instance or attempt lazy initialization."""
+    """Get loaded champion predictor instance or attempt lazy initialization."""
     global predictor
     if predictor is None:
         try:
@@ -49,6 +58,22 @@ def get_predictor() -> FraudPredictor:
                 detail=f"Model predictor not ready: {e}",
             )
     return predictor
+
+
+def get_challenger_predictor() -> FraudPredictor | None:
+    """Retrieve candidate challenger predictor if models_candidate exists."""
+    global challenger_predictor
+    if challenger_predictor is None:
+        candidate_dir = Path("models_candidate")
+        if candidate_dir.exists() and (candidate_dir / "model.txt").exists():
+            try:
+                challenger_predictor = FraudPredictor(models_dir=candidate_dir)
+                logger.info("Challenger shadow model loaded from %s", candidate_dir)
+            except Exception as e:
+                logger.warning("Could not load challenger shadow model: %s", e)
+                challenger_predictor = None
+    return challenger_predictor
+
 
 
 @asynccontextmanager
@@ -118,8 +143,62 @@ def readiness_check():
 
 @app.get("/metrics", tags=["Monitoring"])
 def metrics():
-    """Prometheus metrics endpoint."""
+    """Prometheus metrics endpoint with real-time drift gauges."""
+    drift_mon = get_drift_monitor()
+    psi_dict = drift_mon.compute_all_psi()
+    for feat, psi_val in psi_dict.items():
+        FEATURE_PSI.labels(feature=feat).set(psi_val)
+
+    summary = drift_mon.get_summary()
+    status_map = {"HEALTHY": 1.0, "MODERATE_DRIFT": 2.0, "CRITICAL_DRIFT": 3.0}
+    MODEL_HEALTH_STATUS.set(status_map.get(summary["status"], 1.0))
+
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+def evaluate_shadow_model(payload: dict[str, Any], champion_score: float) -> None:
+    """Evaluate challenger model in shadow mode asynchronously without affecting client latency."""
+    challenger = get_challenger_predictor()
+    if challenger is None:
+        return
+    try:
+        challenger_res = challenger.score_dict(payload, explain=False)
+        challenger_score = challenger_res["fraud_probability"]
+        divergence = abs(champion_score - challenger_score)
+
+        SHADOW_EVALUATIONS.labels(status="success").inc()
+        SHADOW_SCORE_DIVERGENCE.observe(divergence)
+    except Exception as e:
+        logger.warning("Shadow model evaluation error: %s", e)
+        SHADOW_EVALUATIONS.labels(status="error").inc()
+
+
+@app.get("/v1/model/shadow", tags=["Monitoring"])
+def get_shadow_status(api_key: str = Depends(get_api_key)):
+    """Return status and comparison specs of Champion vs Challenger shadow model."""
+    champ = get_predictor()
+    challenger = get_challenger_predictor()
+    return {
+        "shadow_mode_active": challenger is not None,
+        "champion": {
+            "version": champ.model_version,
+            "thresholds": {"t_review": champ.t_review, "t_block": champ.t_block},
+            "num_features": len(champ.feature_builder.final_feature_names),
+        },
+        "challenger": {
+            "version": challenger.model_version if challenger else None,
+            "thresholds": {"t_review": challenger.t_review, "t_block": challenger.t_block} if challenger else None,
+            "num_features": len(challenger.feature_builder.final_feature_names) if challenger else None,
+        } if challenger else None,
+    }
+
+
+@app.get("/v1/model/drift", tags=["Monitoring"])
+def get_model_drift(api_key: str = Depends(get_api_key)):
+    """Return real-time PSI drift summary and feature degradation status."""
+    drift_mon = get_drift_monitor()
+    return drift_mon.get_summary()
+
 
 
 @app.get("/v1/model/info", response_model=ModelInfoResponse, tags=["Model Info"])
@@ -172,9 +251,26 @@ async def score_transaction(
 
     res, timings = pred.score_dict(payload, explain=explain, return_timings=True)
 
-    # 4. Audit write stage (scheduled via BackgroundTasks)
+    # 4. Audit write & velocity store ingestion (scheduled via BackgroundTasks)
     t_audit_0 = time.perf_counter()
     background_tasks.add_task(log_prediction_to_db, res)
+
+    # Ingest event into online velocity feature store asynchronously
+    card_id = payload.get("card1")
+    if card_id is not None:
+        from src.fraud.features.velocity import get_velocity_store
+        vstore = get_velocity_store()
+        amt = float(payload.get("TransactionAmt", 0.0))
+        tx_dt = float(payload.get("TransactionDT", time.time()))
+        background_tasks.add_task(vstore.record_transaction, str(card_id), amt, tx_dt)
+
+    # Ingest event into streaming drift monitor asynchronously
+    drift_mon = get_drift_monitor()
+    background_tasks.add_task(drift_mon.record_observation, payload, res["fraud_probability"])
+
+    # Evaluate challenger model in shadow mode asynchronously
+    background_tasks.add_task(evaluate_shadow_model, payload, res["fraud_probability"])
+
     t_audit_ms = (time.perf_counter() - t_audit_0) * 1000.0
 
     # 5. Serialization stage

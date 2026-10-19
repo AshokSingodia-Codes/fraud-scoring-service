@@ -69,6 +69,7 @@ def test_predictor_score_dict():
     assert res["latency_ms"] > 0
 
 
+@pytest.mark.slow
 def test_fast_path_feature_and_prediction_parity_on_200_samples():
     """Assert fast-path feature vector equals reference on 200 sample transactions and predictions match within 1e-6."""
     import numpy as np
@@ -255,5 +256,87 @@ def test_fast_path_parity_on_500_real_rows():
         )
         assert abs(exp_ref["margin_score"] - exp_fast["margin_score"]) < 1e-6
         assert [r["feature"] for r in exp_ref["reasons"]] == [r["feature"] for r in exp_fast["reasons"]]
+
+
+@pytest.mark.slow
+def test_parity_script_nonzero_exit_on_perturbation():
+    """Assert scripts/check_parity.py exits non-zero (1) when --perturb is passed."""
+    import subprocess
+    import sys
+
+
+    cmd = [sys.executable, "scripts/check_parity.py", "--rows", "100", "--perturb"]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 1, f"Expected returncode 1, got {res.returncode}. Output:\n{res.stdout}\n{res.stderr}"
+
+
+def test_predictor_startup_manifest_missing_in_prod(monkeypatch):
+    """Assert FraudPredictor refuses to start without manifest.json in prod mode."""
+    import shutil
+    import tempfile
+
+    import pytest
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_models = Path(tmpdir)
+        for fname in ["model.txt", "feature_builder.joblib", "calibrator.joblib", "thresholds.json"]:
+            shutil.copy(Path("models") / fname, tmp_models / fname)
+        # Ensure manifest.json does NOT exist
+        if (tmp_models / "manifest.json").exists():
+            (tmp_models / "manifest.json").unlink()
+
+        with pytest.raises(ValueError, match="manifest.json missing in production environment"):
+            FraudPredictor(models_dir=tmp_models)
+
+
+def test_predictor_startup_manifest_tampered(monkeypatch):
+    """Assert FraudPredictor refuses to start when an artifact has been tampered with."""
+    import json
+    import shutil
+    import tempfile
+
+    import pytest
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_models = Path(tmpdir)
+        for fname in ["model.txt", "feature_builder.joblib", "calibrator.joblib", "thresholds.json"]:
+            shutil.copy(Path("models") / fname, tmp_models / fname)
+
+        manifest = {
+            "sha256": {
+                "model.txt": "0000000000000000000000000000000000000000000000000000000000000000",
+                "feature_builder.joblib": "dummy_hash",
+            }
+        }
+        with open(tmp_models / "manifest.json", "w") as f:
+            json.dump(manifest, f)
+
+        with pytest.raises(ValueError, match="Manifest integrity failure"):
+            FraudPredictor(models_dir=tmp_models)
+
+
+def test_predictor_startup_manifest_missing_dev_warning(monkeypatch, caplog):
+    """Assert FraudPredictor logs a warning and starts normally when manifest is missing in dev mode."""
+    import logging
+    import shutil
+    import tempfile
+
+    monkeypatch.setenv("APP_ENV", "dev")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_models = Path(tmpdir)
+        for fname in ["model.txt", "feature_builder.joblib", "calibrator.joblib", "thresholds.json"]:
+            shutil.copy(Path("models") / fname, tmp_models / fname)
+        if (tmp_models / "manifest.json").exists():
+            (tmp_models / "manifest.json").unlink()
+
+        with caplog.at_level(logging.WARNING):
+            pred = FraudPredictor(models_dir=tmp_models)
+            assert pred is not None
+            assert any("manifest.json missing" in rec.message for rec in caplog.records)
+
+
+
 
 

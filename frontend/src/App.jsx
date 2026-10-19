@@ -23,8 +23,8 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-800">
-        {/* Top Navigation */}
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+        {/* Clean Navbar */}
         <Navbar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -32,8 +32,8 @@ export default function App() {
           onOpenHelp={() => setHelpOpen(true)}
         />
 
-        {/* Main Page Content */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Content Body */}
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
           {activeTab === 'home' && <HomePage onNavigate={setActiveTab} />}
           {activeTab === 'check-one' && <CheckOnePage onToast={showToast} />}
           {activeTab === 'check-bulk' && <CheckBulkPage onToast={showToast} />}
@@ -42,61 +42,38 @@ export default function App() {
           {activeTab === 'model-info' && <ModelInfoPage />}
         </main>
 
-        {/* Global Footer */}
-        <footer className="border-t border-slate-200 bg-white py-6 text-xs text-slate-500">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-700">FraudShield AI</span>
-              <span>•</span>
-              <span>Enterprise Fraud Scoring Engine &copy; 2026</span>
-            </div>
-
-            <div className="flex items-center gap-4 text-xs font-medium">
-              <a
-                href="http://127.0.0.1:8000/docs"
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-indigo-600 transition-colors"
-              >
-                Swagger API Docs
+        {/* Minimal Footer */}
+        <footer className="border-t border-slate-200 bg-white py-4 text-xs text-slate-500">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+            <span className="font-medium text-slate-700">FraudShield</span>
+            <div className="flex gap-4">
+              <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer" className="hover:text-slate-900">
+                API Docs
               </a>
-              <span>•</span>
-              <a
-                href="http://127.0.0.1:8000/metrics"
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-indigo-600 transition-colors"
-              >
-                Prometheus Metrics
+              <a href="http://127.0.0.1:8000/metrics" target="_blank" rel="noreferrer" className="hover:text-slate-900">
+                Metrics
               </a>
-              <span>•</span>
-              <button
-                onClick={() => setHelpOpen(true)}
-                className="hover:text-indigo-600 transition-colors cursor-pointer"
-              >
-                Glossary & Help
-              </button>
             </div>
           </div>
         </footer>
 
-        {/* Modals & Overlays */}
+        {/* Modals */}
         <SettingsModal
           isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
-          onSaveSuccess={(msg) => showToast(msg)}
+          onToast={showToast}
         />
-
         <HelpDrawer
           isOpen={helpOpen}
           onClose={() => setHelpOpen(false)}
         />
-
-        <Toast
-          message={toast?.message}
-          type={toast?.type}
-          onClose={() => setToast(null)}
-        />
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );

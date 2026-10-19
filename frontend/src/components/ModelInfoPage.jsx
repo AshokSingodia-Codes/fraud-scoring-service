@@ -9,12 +9,15 @@ import {
   Code,
   ChevronDown,
   ChevronUp,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from 'lucide-react';
-import { getModelInfo } from '../services/api';
+import { getModelInfo, getModelDrift, getShadowModelStatus } from '../services/api';
 
 export default function ModelInfoPage() {
   const [info, setInfo] = useState(null);
+  const [drift, setDrift] = useState(null);
+  const [shadow, setShadow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [devSectionOpen, setDevSectionOpen] = useState(false);
@@ -23,8 +26,14 @@ export default function ModelInfoPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getModelInfo();
-      setInfo(data);
+      const [infoData, driftData, shadowData] = await Promise.all([
+        getModelInfo(),
+        getModelDrift().catch(() => null),
+        getShadowModelStatus().catch(() => null)
+      ]);
+      setInfo(infoData);
+      setDrift(driftData);
+      setShadow(shadowData);
     } catch (err) {
       setError(err.message || "Failed to load model specifications from the API.");
     } finally {
@@ -34,10 +43,16 @@ export default function ModelInfoPage() {
 
   useEffect(() => {
     let isMounted = true;
-    getModelInfo()
-      .then(data => {
+    Promise.all([
+      getModelInfo(),
+      getModelDrift().catch(() => null),
+      getShadowModelStatus().catch(() => null)
+    ])
+      .then(([infoData, driftData, shadowData]) => {
         if (isMounted) {
-          setInfo(data);
+          setInfo(infoData);
+          setDrift(driftData);
+          setShadow(shadowData);
           setLoading(false);
         }
       })
@@ -49,6 +64,7 @@ export default function ModelInfoPage() {
       });
     return () => { isMounted = false; };
   }, []);
+
 
   return (
     <div className="space-y-8 py-2">
@@ -149,6 +165,129 @@ export default function ModelInfoPage() {
               <span className="text-xs text-slate-500 block">Time-series test accuracy</span>
             </div>
           </div>
+
+          {/* Real-Time Model Drift & Observability Section */}
+          {drift && (
+            <div className="card-clean p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="space-y-0.5">
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-indigo-600" />
+                    Live Population Stability Index (PSI) & Model Health
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Real-time drift detection tracking inference distribution shifts against 590K baseline training transactions.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                    drift.status === 'HEALTHY'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : drift.status === 'MODERATE_DRIFT'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                  }`}>
+                    Status: {drift.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase">Streaming Window</div>
+                  <div className="text-lg font-black text-slate-800 mt-0.5">{drift.window_size} events</div>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase">Buffered Events</div>
+                  <div className="text-lg font-black text-slate-800 mt-0.5">{drift.current_samples}</div>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase">Mean Live Score</div>
+                  <div className="text-lg font-black text-slate-800 mt-0.5">{drift.mean_fraud_probability || 0.0}</div>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase">Critical Drift Alerts</div>
+                  <div className={`text-lg font-black mt-0.5 ${drift.critical_features?.length ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {drift.critical_features?.length || 0}
+                  </div>
+                </div>
+              </div>
+
+              {drift.feature_psi && Object.keys(drift.feature_psi).length > 0 && (
+                <div className="pt-2">
+                  <div className="text-xs font-bold text-slate-700 mb-2">Live Feature PSI Drift Gauges:</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {Object.entries(drift.feature_psi).map(([feat, psi]) => (
+                      <div key={feat} className="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between text-xs">
+                        <span className="font-mono text-slate-600">{feat}</span>
+                        <span className={`font-bold ${psi < 0.10 ? 'text-emerald-600' : psi < 0.25 ? 'text-amber-600' : 'text-rose-600'}`}>
+                          {psi.toFixed(4)} PSI
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Champion vs Challenger Shadow Deployment Panel */}
+          {shadow && shadow.shadow_mode_active && (
+            <div className="card-clean p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="space-y-0.5">
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                    Champion vs Challenger Shadow Deployment
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Candidate model is asynchronously scored in shadow mode against live traffic to validate stability with zero customer impact.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 self-start sm:self-auto">
+                  Shadow Routing: Active
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Champion Card */}
+                <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-emerald-800 uppercase tracking-wider">
+                      Champion (Production)
+                    </span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                      100% Decision Traffic
+                    </span>
+                  </div>
+                  <div className="text-sm font-bold text-slate-800">Version: {shadow.champion.version}</div>
+                  <div className="text-xs text-slate-600 space-y-1">
+                    <div>Features: {shadow.champion.num_features} signals</div>
+                    <div>Review Threshold: {shadow.champion.thresholds.t_review}</div>
+                    <div>Block Threshold: {shadow.champion.thresholds.t_block}</div>
+                  </div>
+                </div>
+
+                {/* Challenger Card */}
+                <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-indigo-800 uppercase tracking-wider">
+                      Challenger (Shadow Mode)
+                    </span>
+                    <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">
+                      Silent Async Evaluation
+                    </span>
+                  </div>
+                  <div className="text-sm font-bold text-slate-800">Candidate Version: {shadow.challenger?.version}</div>
+                  <div className="text-xs text-slate-600 space-y-1">
+                    <div>Features: {shadow.challenger?.num_features} signals</div>
+                    <div>Review Threshold: {shadow.challenger?.thresholds?.t_review}</div>
+                    <div>Block Threshold: {shadow.challenger?.thresholds?.t_block}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Decision Boundaries / Cost Matrix Explanation */}
           <div className="card-clean p-6 sm:p-8 space-y-6">

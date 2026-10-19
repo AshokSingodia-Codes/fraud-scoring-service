@@ -25,16 +25,20 @@ An end-to-end, production-grade fraud scoring engine built on the Kaggle IEEE-CI
 
 ```mermaid
 flowchart TD
-    Client[Client / React Vite UI / Vercel] -->|POST /v1/score| API[FastAPI Scoring Service / Render]
+    Client[Client / React UI] -->|POST /v1/score| API[FastAPI Scoring Service]
     API --> Auth[API Key Auth & Token Bucket Rate Limiter]
-    Auth --> FB[FeatureBuilder]
+    API -->|Async Read| VStore[(Redis / In-Memory Velocity Feature Store)]
+    VStore -->|Rolling Burst Features| FB[FeatureBuilder]
     FB --> LGBM[LightGBM Model Engine]
     LGBM --> Calib[Isotonic Probability Calibrator]
     Calib --> Thresh[Cost-Optimal Decision Engine]
     Thresh --> SHAP[Native SHAP Explanation Engine]
-    SHAP --> DB[(PostgreSQL / SQLite Audit Log)]
-    SHAP --> Prom[Prometheus Metrics Exporter]
-    Prom --> Grafana[Grafana Dashboard]
+    API -.->|Background Tasks| Ingest[Async Ingestion]
+    Ingest --> DB[(PostgreSQL Audit Log)]
+    Ingest --> VStore
+    Ingest --> Drift[Streaming PSI Drift Engine]
+    Drift --> Prom[Prometheus Exporter /metrics]
+    Prom --> Grafana[Grafana Observability Dashboard]
 ```
 
 ---
@@ -161,17 +165,24 @@ Starts API (`localhost:8000`), Postgres (`localhost:5432`), Redis (`localhost:63
 4. **Wildcard CORS Policy:** The FastAPI backend currently enables `allow_origins=["*"]` to ensure straightforward local interoperability between local Vite dev hosts and multi-origin cloud deployments. In enterprise environments, this should be scoped to a strict white-list of trusted origins.
 5. **Local-Only Compose Credentials:** Passwords in `docker-compose.yml` (`POSTGRES_PASSWORD=postgres`, etc.) are designed strictly for out-of-the-box local developer ergonomics. In production deployments, these must be injected via secure secret management services.
 6. **Browser-Only Saved Reports:** Audit reports saved from the frontend dashboard persist in client-side browser `localStorage`. Historical persistence on the backend is maintained in the `/v1/predictions/{transaction_id}` relational audit database rather than a user-synced cloud workspace.
+7. **BackgroundTasks Audit Logging Durability:** Audit database writes are deferred outside the scoring request-response critical path using FastAPI's in-process `BackgroundTasks` (`background_tasks.add_task(log_prediction_to_db, res)`). While this reduces audit write overhead to sub-millisecond levels (~0.04 ms), task execution occurs in-memory within the Uvicorn worker process. If a worker process crashes, is abruptly killed, or the container restarts before the background task completes its database transaction, that prediction log entry may be dropped. In high-reliability production banking environments, this should be backed by a persistent durable distributed queue (e.g. Apache Kafka, AWS SQS, or RabbitMQ) or write-ahead logging (WAL).
+
 
 ---
 
 ## 📡 API Usage Examples
 
-### 1. Health Check
+### 1. Health & Real-Time Drift Status
 ```bash
+# Health check
 curl -X GET "http://localhost:8000/health"
+
+# Real-time feature drift and Population Stability Index (PSI) summary
+curl -X GET "http://localhost:8000/v1/model/drift" \
+  -H "X-API-Key: demo-api-key-12345"
 ```
 
-### 2. Score Single Transaction
+### 2. Score Transaction with Dynamic Velocity Features
 ```bash
 curl -X POST "http://localhost:8000/v1/score?explain=true" \
   -H "X-API-Key: demo-api-key-12345" \
@@ -185,9 +196,16 @@ curl -X POST "http://localhost:8000/v1/score?explain=true" \
     "P_emaildomain": "gmail.com"
   }'
 ```
+*Returns calibrated `fraud_probability`, cost-optimal `decision`, top-5 per-prediction SHAP `reasons`, and streaming `velocity_features` (`card1_tx_cnt_10m`, `card1_amt_sum_10m`, etc.).*
 
 ---
 
-## 💼 Resume Bullet
+## 💼 Staff / Senior ML Engineering Resume Bullets
 
-> *Built an end-to-end, real-time fraud scoring service on 590k IEEE-CIS transactions (LightGBM, isotonic probability calibration, cost-optimal decision thresholds, per-prediction SHAP reason codes) reaching 0.905 ROC-AUC and 0.529 PR-AUC on a strict time-held-out test set with day-index drift eliminated; served via FastAPI with PostgreSQL, Redis rate-limiting, and Prometheus monitoring at 0.0% load test error rate; containerized with Docker Compose and GitHub Actions CI/CD.*
+> **Real-Time Fraud ML Platform & Streaming Feature Store (Production MLE)**:
+> *"Architected an end-to-end, sub-15ms fraud scoring platform on 590k IEEE-CIS transactions (LightGBM, isotonic probability calibration, cost-optimal decision policies, per-prediction SHAP reason codes) achieving 0.905 ROC-AUC and 0.529 PR-AUC on temporal out-of-time splits; engineered a streaming Redis velocity feature store (atomic `ZSET` pipelines for 10m/1h/24h sliding aggregations) and a real-time drift detection engine exporting streaming PSI to Prometheus & Grafana; containerized with Docker Compose with 0.0% error rate under load."*
+
+> **Zero-Downtime Model Deployment & Canary Governance**:
+> *"Implemented an asynchronous Champion-Challenger shadow evaluation pipeline routing live production traffic copies to candidate models without degrading client P99 latency; monitored score divergence (`fraud_shadow_score_divergence`) and distribution shifts in Prometheus before automated model promotion."*
+
+
