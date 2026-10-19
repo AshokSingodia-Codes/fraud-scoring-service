@@ -39,7 +39,6 @@ export default function App() {
           {activeTab === 'check-bulk' && <CheckBulkPage onToast={showToast} />}
           {activeTab === 'find-id' && <FindByIdPage onToast={showToast} />}
           {activeTab === 'saved-reports' && <SavedReportsPage onToast={showToast} />}
-          {activeTab === 'model-info' && <ModelInfoPage />}
         </main>
 
         {/* Minimal Footer */}

@@ -51,8 +51,8 @@
 
 .input-clean:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 .input-clean:disabled {
@@ -61,24 +61,25 @@
   cursor: not-allowed;
 }
 
-/* Standard Clean Buttons */
+/* Light Theme - Green Primary Buttons */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   border-radius: 0.5rem;
-  background-color: #4f46e5;
+  background-color: #059669;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(79, 70, 229, 0.15);
-  transition: background-color 0.15s ease, transform 0.05s ease;
+  box-shadow: 0 1px 2px 0 rgba(5, 150, 105, 0.2);
+  transition: all 0.15s ease;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #4338ca;
+  background-color: #047857;
+  box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.25);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -106,9 +107,9 @@
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background-color: #f0fdf4;
+  border-color: #a7f3d0;
+  color: #065f46;
 }
 
 /* Decision Badges */

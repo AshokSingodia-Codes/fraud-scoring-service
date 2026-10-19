@@ -420,7 +420,7 @@ export default function CheckOnePage({ onToast }) {
         <div className="lg:col-span-5 space-y-6">
           {!result && !loading && (
             <div className="card-clean p-8 text-center space-y-3 text-slate-500">
-              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mx-auto">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div className="space-y-1">
@@ -434,7 +434,7 @@ export default function CheckOnePage({ onToast }) {
 
           {loading && (
             <div className="card-clean p-8 text-center space-y-3">
-              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
               <div className="space-y-0.5">
                 <h3 className="font-bold text-slate-800 text-sm">Evaluating Risk...</h3>
                 <p className="text-xs text-slate-500">Computing probability and SHAP factors.</p>

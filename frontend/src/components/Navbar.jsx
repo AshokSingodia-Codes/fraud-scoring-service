@@ -44,7 +44,6 @@ export default function Navbar({ activeTab, setActiveTab, onOpenSettings, onOpen
     { id: 'check-bulk', label: 'Batch' },
     { id: 'find-id', label: 'Audit Log' },
     { id: 'saved-reports', label: 'Saved' },
-    { id: 'model-info', label: 'Model' },
   ];
 
   const handleNavClick = (id) => {
@@ -58,7 +57,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenSettings, onOpen
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => handleNavClick('home')}>
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <span className="font-bold text-slate-900 text-base tracking-tight">FraudShield</span>
@@ -90,16 +89,8 @@ export default function Navbar({ activeTab, setActiveTab, onOpenSettings, onOpen
               className={`inline-block w-2 h-2 rounded-full ${
                 systemStatus.online ? 'bg-emerald-500' : 'bg-rose-500'
               }`}
-              title={systemStatus.online ? 'Model online' : 'Offline'}
+              title={systemStatus.online ? 'Service online' : 'Offline'}
             />
-
-            <button
-              onClick={onOpenSettings}
-              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
-              title="Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
 
             {/* Mobile menu button */}
             <button
