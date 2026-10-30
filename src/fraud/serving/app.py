@@ -129,6 +129,7 @@ app.add_middleware(
 
 
 @app.get("/health", tags=["Health"])
+@app.get("/healthz", tags=["Health"])
 def health_check():
     """Liveness probe."""
     return {"status": "ok"}
