@@ -47,7 +47,20 @@ class FraudPredictor:
                 target_f = base_models_dir / fname
                 if not target_f.exists():
                     raise ValueError(f"Manifest integrity failure: file {fname} declared in manifest missing on disk.")
-                actual_hash = hashlib.sha256(target_f.read_bytes()).hexdigest()
+                file_bytes = target_f.read_bytes()
+                actual_hash = hashlib.sha256(file_bytes).hexdigest()
+                # If file is text-based (e.g. model.txt), also check normalized LF/CRLF representation
+                if actual_hash != exp_hash and fname.endswith(".txt"):
+                    normalized_bytes = file_bytes.replace(b"\r\n", b"\n")
+                    norm_hash = hashlib.sha256(normalized_bytes).hexdigest()
+                    if norm_hash == exp_hash:
+                        actual_hash = norm_hash
+                    else:
+                        crlf_bytes = normalized_bytes.replace(b"\n", b"\r\n")
+                        crlf_hash = hashlib.sha256(crlf_bytes).hexdigest()
+                        if crlf_hash == exp_hash:
+                            actual_hash = crlf_hash
+
                 if actual_hash != exp_hash:
                     raise ValueError(
                         f"Manifest integrity failure for {fname}: expected SHA-256 {exp_hash}, got {actual_hash}"

@@ -1,0 +1,4 @@
+# Ensure model artifacts and binary files are checked out without CRLF translation
+models/model.txt -text
+*.joblib binary
+*.parquet binary

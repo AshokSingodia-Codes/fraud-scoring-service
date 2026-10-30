@@ -47,7 +47,19 @@ def check_artifact_consistency(models_dir: str = "models", tolerance: float = 1e
         if not fpath.exists():
             logger.error("Declared artifact %s does not exist on disk!", fpath)
             sys.exit(1)
-        actual_hash = hashlib.sha256(fpath.read_bytes()).hexdigest()
+        file_bytes = fpath.read_bytes()
+        actual_hash = hashlib.sha256(file_bytes).hexdigest()
+        if actual_hash != exp_hash and fname.endswith(".txt"):
+            norm_bytes = file_bytes.replace(b"\r\n", b"\n")
+            norm_hash = hashlib.sha256(norm_bytes).hexdigest()
+            if norm_hash == exp_hash:
+                actual_hash = norm_hash
+            else:
+                crlf_bytes = norm_bytes.replace(b"\n", b"\r\n")
+                crlf_hash = hashlib.sha256(crlf_bytes).hexdigest()
+                if crlf_hash == exp_hash:
+                    actual_hash = crlf_hash
+
         if actual_hash != exp_hash:
             logger.error("Hash mismatch for %s: expected %s, got %s", fname, exp_hash, actual_hash)
             sys.exit(1)
