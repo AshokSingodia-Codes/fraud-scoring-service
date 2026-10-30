@@ -6,7 +6,7 @@
     "synthetic_unseen": 100
   },
   "features_evaluated": 456,
-  "max_abs_feature_matrix_diff": 2.1972656213620212e-05,
+  "max_abs_feature_matrix_diff": 1.2207031261368684e-05,
   "nan_mask_mismatches": 0,
   "max_abs_raw_probability_diff": 0.0,
   "max_abs_calibrated_probability_diff": 0.0,
