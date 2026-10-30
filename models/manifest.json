@@ -13,6 +13,9 @@
     ],
     "feature_builder.joblib": "c221f81f7e574e38d1ef1558609b3721324fd4e19659fc2073a4ebf9411a248a",
     "calibrator.joblib": "7e7465d0d36f42a66ebd328c6fa25b369eaae500061f00719aa00c5114cb0352",
-    "thresholds.json": "a92bdecf278c1fa32e1febbb1da0fb72e0dbffd217fc6df1b10db5d86bdf6578"
+    "thresholds.json": [
+      "a92bdecf278c1fa32e1febbb1da0fb72e0dbffd217fc6df1b10db5d86bdf6578",
+      "e782f9c8128094036605514449c6ae90e5317d33835cc4b3ddad094ecfe94ca2"
+    ]
   }
 }

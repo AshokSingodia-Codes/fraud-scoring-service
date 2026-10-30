@@ -51,8 +51,8 @@ class FraudPredictor:
                 actual_hash = hashlib.sha256(file_bytes).hexdigest()
                 valid_hashes = [exp_hash] if isinstance(exp_hash, str) else list(exp_hash)
 
-                # If file is text-based (e.g. model.txt), also check normalized LF/CRLF representation
-                if actual_hash not in valid_hashes and fname.endswith(".txt"):
+                # If file is text-based (e.g. model.txt, thresholds.json), also check normalized LF/CRLF representation
+                if actual_hash not in valid_hashes and any(fname.endswith(ext) for ext in [".txt", ".json", ".yaml", ".yml"]):
                     normalized_bytes = file_bytes.replace(b"\r\n", b"\n")
                     norm_hash = hashlib.sha256(normalized_bytes).hexdigest()
                     if norm_hash in valid_hashes:

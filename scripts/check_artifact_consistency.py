@@ -50,7 +50,7 @@ def check_artifact_consistency(models_dir: str = "models", tolerance: float = 1e
         file_bytes = fpath.read_bytes()
         actual_hash = hashlib.sha256(file_bytes).hexdigest()
         valid_hashes = [exp_hash] if isinstance(exp_hash, str) else list(exp_hash)
-        if actual_hash not in valid_hashes and fname.endswith(".txt"):
+        if actual_hash not in valid_hashes and any(fname.endswith(ext) for ext in [".txt", ".json", ".yaml", ".yml"]):
             norm_bytes = file_bytes.replace(b"\r\n", b"\n")
             norm_hash = hashlib.sha256(norm_bytes).hexdigest()
             if norm_hash in valid_hashes:
