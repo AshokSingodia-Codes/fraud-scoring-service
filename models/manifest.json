@@ -7,7 +7,10 @@
     "test_ratio": 0.15
   },
   "sha256": {
-    "model.txt": "de0e96bd225ca8b96434b412fd83f84348b6a40c14aeae781ff1988631c88ccd",
+    "model.txt": [
+      "de0e96bd225ca8b96434b412fd83f84348b6a40c14aeae781ff1988631c88ccd",
+      "16210a55a9e51434e4d3b46e6434a5e33f0380778ce7a1c247a639300889a7d1"
+    ],
     "feature_builder.joblib": "c221f81f7e574e38d1ef1558609b3721324fd4e19659fc2073a4ebf9411a248a",
     "calibrator.joblib": "7e7465d0d36f42a66ebd328c6fa25b369eaae500061f00719aa00c5114cb0352",
     "thresholds.json": "a92bdecf278c1fa32e1febbb1da0fb72e0dbffd217fc6df1b10db5d86bdf6578"

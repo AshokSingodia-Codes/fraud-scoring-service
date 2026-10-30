@@ -49,19 +49,20 @@ def check_artifact_consistency(models_dir: str = "models", tolerance: float = 1e
             sys.exit(1)
         file_bytes = fpath.read_bytes()
         actual_hash = hashlib.sha256(file_bytes).hexdigest()
-        if actual_hash != exp_hash and fname.endswith(".txt"):
+        valid_hashes = [exp_hash] if isinstance(exp_hash, str) else list(exp_hash)
+        if actual_hash not in valid_hashes and fname.endswith(".txt"):
             norm_bytes = file_bytes.replace(b"\r\n", b"\n")
             norm_hash = hashlib.sha256(norm_bytes).hexdigest()
-            if norm_hash == exp_hash:
+            if norm_hash in valid_hashes:
                 actual_hash = norm_hash
             else:
                 crlf_bytes = norm_bytes.replace(b"\n", b"\r\n")
                 crlf_hash = hashlib.sha256(crlf_bytes).hexdigest()
-                if crlf_hash == exp_hash:
+                if crlf_hash in valid_hashes:
                     actual_hash = crlf_hash
 
-        if actual_hash != exp_hash:
-            logger.error("Hash mismatch for %s: expected %s, got %s", fname, exp_hash, actual_hash)
+        if actual_hash not in valid_hashes:
+            logger.error("Hash mismatch for %s: expected %s, got %s", fname, valid_hashes, actual_hash)
             sys.exit(1)
         logger.info("  [OK] %s hash matches (%s)", fname, actual_hash[:16])
 
