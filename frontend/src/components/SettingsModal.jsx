@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { X, Key, Globe, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
+import { X, Globe, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
 import { getApiSettings, saveApiSettings, resetApiSettings, checkHealth } from '../services/api';
 
 export default function SettingsModal({ isOpen, onClose, onSaveSuccess }) {
   const [apiUrl, setApiUrl] = useState(() => getApiSettings().apiUrl);
-  const [apiKey, setApiKey] = useState(() => getApiSettings().apiKey);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
@@ -15,7 +14,7 @@ export default function SettingsModal({ isOpen, onClose, onSaveSuccess }) {
     setTestResult(null);
     try {
       await checkHealth();
-      setTestResult({ success: true, message: "Connected successfully! Fraud Scoring API is online." });
+      setTestResult({ success: true, message: "Connected successfully! Fraud Service is online." });
     } catch (err) {
       setTestResult({ success: false, message: `Could not reach API: ${err.message}` });
     } finally {
@@ -25,8 +24,8 @@ export default function SettingsModal({ isOpen, onClose, onSaveSuccess }) {
 
   const handleSave = (e) => {
     e.preventDefault();
-    saveApiSettings(apiUrl, apiKey);
-    if (onSaveSuccess) onSaveSuccess("Settings saved successfully.");
+    saveApiSettings(apiUrl);
+    if (onSaveSuccess) onSaveSuccess("Server settings saved successfully.");
     onClose();
   };
 
@@ -34,7 +33,6 @@ export default function SettingsModal({ isOpen, onClose, onSaveSuccess }) {
     resetApiSettings();
     const defaults = getApiSettings();
     setApiUrl(defaults.apiUrl);
-    setApiKey(defaults.apiKey);
     setTestResult({ success: true, message: "Reset to default server configuration." });
   };
 
@@ -43,8 +41,8 @@ export default function SettingsModal({ isOpen, onClose, onSaveSuccess }) {
       <div className="card-clean max-w-lg w-full p-6 shadow-xl space-y-6 relative">
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">API Connection Settings</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Configure your server address and authentication key</p>
+            <h3 className="text-lg font-bold text-slate-900">Backend Server Settings</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Configure your fraud scoring backend endpoint</p>
           </div>
           <button
             onClick={onClose}
@@ -70,25 +68,7 @@ export default function SettingsModal({ isOpen, onClose, onSaveSuccess }) {
               className="input-clean text-sm"
             />
             <p className="text-xs text-slate-500 mt-1">
-              Local default is <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">http://localhost:8000</code> or your hosted Render URL.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <Key className="w-4 h-4 text-slate-400" />
-              X-API-Key (Secret Key)
-            </label>
-            <input
-              type="text"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="demo-api-key-12345"
-              required
-              className="input-clean text-sm font-mono"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              Used to authorize requests with the fraud scoring backend. Never shared externally.
+              Local default is <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">http://localhost:8000</code> or your deployed Render URL (e.g. <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">https://your-app.onrender.com</code>).
             </p>
           </div>
 

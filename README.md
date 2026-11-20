@@ -1,211 +1,307 @@
-# Real-Time Fraud Scoring Service (IEEE-CIS Fraud Detection)
+# Real-Time Fraud Detection & Decision Engine
 
 [![CI/CD Pipeline](https://github.com/AshokSingodia-Codes/fraud-scoring-service/actions/workflows/ci.yml/badge.svg)](https://github.com/AshokSingodia-Codes/fraud-scoring-service/actions/workflows/ci.yml)
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-1.0.0-green.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38bdf8.svg)](https://tailwindcss.com/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)](https://fastapi.tiangolo.com/)
+[![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-CSS%20v4-38bdf8.svg)](https://tailwindcss.com/)
+[![Tests Passing](https://img.shields.io/badge/Tests-82%20Passed%20(100%25)-success.svg)](tests/)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue.svg)](Dockerfile)
 
-An end-to-end, production-grade fraud scoring engine built on the Kaggle IEEE-CIS Fraud Detection dataset. It evaluates credit card transactions in real time, returning calibrated fraud probabilities, cost-based decision policies (`APPROVE`, `MANUAL REVIEW`, `BLOCK`), and top-5 per-prediction SHAP reason codes.
-
----
-
-## 🔗 Live Deployments
-
-- **Backend API (Render Web Service):** [https://fraud-scoring-service.onrender.com](https://fraud-scoring-service.onrender.com)
-  - API Health Check: `https://fraud-scoring-service.onrender.com/health`
-  - Interactive Swagger Docs: `https://fraud-scoring-service.onrender.com/docs`
-- **Frontend App (Vercel Dashboard):** [https://fraud-scoring-service.vercel.app](https://fraud-scoring-service.vercel.app)
-- **GitHub Repository:** [https://github.com/AshokSingodia-Codes/fraud-scoring-service](https://github.com/AshokSingodia-Codes/fraud-scoring-service)
+An enterprise-grade, real-time fraud scoring platform and decision engine built on the Kaggle IEEE-CIS Fraud Detection dataset (590K+ transactions). It evaluates credit card payments in milliseconds, outputting calibrated fraud probabilities, asymmetric cost-optimal business decisions (`APPROVE`, `MANUAL REVIEW`, `BLOCK`), per-prediction TreeSHAP adverse action reason codes, dynamic card velocity features, and real-time streaming feature drift monitoring.
 
 ---
 
-## 🌟 Architecture Overview
+## 🔗 Live Deployments & Application Links
+
+| Component | Platform | Live URL & Endpoints | Status |
+| :--- | :--- | :--- | :--- |
+| **Frontend Web Application** | Vercel | [https://fraud-scoring-service.vercel.app](https://fraud-scoring-service.vercel.app) | [![Vercel](https://img.shields.io/badge/Vercel-Live%20Production-success?logo=vercel)](https://fraud-scoring-service.vercel.app) |
+| **Backend Scoring API** | Render | [https://fraud-scoring-api.onrender.com](https://fraud-scoring-api.onrender.com) | [![Render](https://img.shields.io/badge/Render-Live%20API-success?logo=render)](https://fraud-scoring-api.onrender.com) |
+| **Interactive API Documentation** | Swagger UI | [https://fraud-scoring-api.onrender.com/docs](https://fraud-scoring-api.onrender.com/docs) | [![Docs](https://img.shields.io/badge/Swagger-OpenAPI%203.0-blue?logo=swagger)](https://fraud-scoring-api.onrender.com/docs) |
+| **Service Health Check** | Render | [https://fraud-scoring-api.onrender.com/health](https://fraud-scoring-api.onrender.com/health) | `{"status": "ok"}` |
+| **Prometheus Telemetry** | Render | [https://fraud-scoring-api.onrender.com/metrics](https://fraud-scoring-api.onrender.com/metrics) | Real-time PSI & Latency |
+| **Project Evaluation & Resume Guide** | Documentation | [reports/EVALUATION_AND_RESUME_GUIDE.md](reports/EVALUATION_AND_RESUME_GUIDE.md) | Verified Benchmarks & Highlights |
+
+---
+
+## 🌟 System Architecture
 
 ```mermaid
 flowchart TD
-    Client[Client / React UI] -->|POST /v1/score| API[FastAPI Scoring Service]
-    API --> Auth[API Key Auth & Token Bucket Rate Limiter]
-    API -->|Async Read| VStore[(Redis / In-Memory Velocity Feature Store)]
-    VStore -->|Rolling Burst Features| FB[FeatureBuilder]
-    FB --> LGBM[LightGBM Model Engine]
-    LGBM --> Calib[Isotonic Probability Calibrator]
-    Calib --> Thresh[Cost-Optimal Decision Engine]
-    Thresh --> SHAP[Native SHAP Explanation Engine]
-    API -.->|Background Tasks| Ingest[Async Ingestion]
-    Ingest --> DB[(PostgreSQL Audit Log)]
-    Ingest --> VStore
-    Ingest --> Drift[Streaming PSI Drift Engine]
-    Drift --> Prom[Prometheus Exporter /metrics]
-    Prom --> Grafana[Grafana Observability Dashboard]
+    subgraph ClientLayer [1. Client & Presentation Layer - Vercel]
+        UI["React 19 Single Page App<br/>(Tailwind CSS v4 / Recharts)"]
+        Gateway["Payment Gateway / E-Commerce Backend"]
+    end
+
+    subgraph APILayer [2. Serving & Ingestion Layer - Render Web Service]
+        RateLimiter["Sliding Window Rate Limiter<br/>(In-Memory / Redis ZSET)"]
+        Val["Pydantic v2 Request Validation<br/>(Strict Type Coercion & Bounds)"]
+        Predictor["FraudPredictor Core Coordinator"]
+        BG["FastAPI BackgroundTasks<br/>(Zero Latency Async Offload)"]
+    end
+
+    subgraph MLEngine [3. Real-Time ML Inference Pipeline]
+        VStore["Online Velocity Store<br/>(10m, 30m, 1h, 24h Card Bursts)"]
+        FB["FeatureBuilder<br/>(456 features / Pre-allocated NumPy)"]
+        LGBM["LightGBM Champion Classifier<br/>(500 trees / num_leaves=101)"]
+        Cal["Probability Calibrator<br/>(Isotonic Regression / ECE: 0.0045)"]
+        Policy["Cost-Optimal Policy Engine<br/>(t_review: 0.0496, t_block: 0.7534)"]
+        SHAP["Native C-TreeSHAP Engine<br/>(Top Adverse Action Reason Codes)"]
+    end
+
+    subgraph ObservabilityAudit [4. Persistence & Observability Plane]
+        DB[("PostgreSQL / SQLite<br/>Audit Store")]
+        Prom["Prometheus Exporter<br/>(/metrics)"]
+        Drift["Streaming PSI Drift Monitor<br/>(Sliding Reservoir)"]
+        Shadow["Challenger Shadow Evaluator<br/>(Candidate Model Telemetry)"]
+    end
+
+    UI -->|HTTPS / JSON| RateLimiter
+    Gateway -->|HTTPS / JSON| RateLimiter
+    RateLimiter --> Val --> Predictor
+    Predictor --> VStore
+    Predictor --> FB --> LGBM --> Cal --> Policy
+    Predictor -.->|If explain=True| SHAP
+    Predictor --> BG
+    BG --> DB
+    BG --> Prom
+    BG --> Drift
+    BG --> Shadow
 ```
 
----
+### Architecture Component Breakdown
 
-## 📊 Comprehensive Model Evaluation & Performance
+```
+[ Client / Browser ] (React 19 on Vercel)
+         │
+         │  HTTPS / JSON  (Open Access, No Auth Barrier)
+         ▼
+[ FastAPI Gateway on Render ]
+    ├── In-memory / Redis Sliding-Window Rate Limiter
+    ├── Pydantic v2 Schema Validation
+    └── FraudPredictor Engine (< 15 ms latency SLA)
+         ├── Online Velocity Store (10m, 30m, 1h, 24h burst tracking)
+         ├── FeatureBuilder (456 numerical & interaction features)
+         ├── LightGBM Champion Model (C++ inference)
+         ├── Isotonic Probability Calibration (ECE: 0.0045)
+         ├── Dual Decision Policy (APPROVE / MANUAL REVIEW / BLOCK)
+         └── Native TreeSHAP Reason Code Generator
+         │
+         └── BackgroundTasks (Async non-blocking offload):
+              ├── Audit Logger (PostgreSQL / SQLite)
+              ├── Streaming PSI Drift Monitor
+              ├── Prometheus Metrics Collector
+              └── Shadow Model Evaluation
+```
 
-All evaluation metrics are computed on a strict **time-series held-out test set** (70% train / 15% validation / 15% test by `TransactionDT`; test set spans Days 152–182) to evaluate true temporal generalization in production conditions without data leakage.
+1. **Client & Presentation Layer (React 19 on Vercel):**
+   - Modern, lightweight single-page application built with React 19, Vite, and Tailwind CSS.
+   - Provides intuitive real-time transaction checking, instant decision badges, TreeSHAP contribution visualizer, audit log search by transaction ID, and PDF/CSV report exports.
+   - Zero authentication barrier: users can immediately verify transactions without login, registration, or API key configuration.
 
-### 1. Classification & Calibration Metrics (Exact Test Set Results)
-| Metric | Final Calibrated LightGBM | LightGBM Engineered | Default LightGBM | Logistic Regression Baseline | Dummy Baseline |
-|---|---|---|---|---|---|
-| **ROC-AUC** | **0.9046** | 0.9063 | 0.9014 | 0.8362 | 0.5000 |
-| **PR-AUC** | **0.5289** | 0.5512 | 0.5303 | 0.3806 | 0.0343 |
-| **Recall @ Precision = 50%** | **53.07%** | 53.52% | 51.55% | 33.83% | 0.03% |
-| **Recall @ Precision = 80%** | **34.19%** | 35.50% | 33.00% | 16.96% | 0.00% |
-| **Recall @ Top 1% Alerts** | **25.56%** | 26.20% | 25.38% | 20.61% | 1.12% |
-| **Recall @ Top 5% Alerts** | **58.55%** | 58.71% | 58.78% | 46.15% | 6.15% |
-| **Brier Score (Calibration)** | **0.0222** | 0.0214 | 0.0219 | 0.1255 | 0.0332 |
-| **Expected Calibration Error (ECE)** | **0.0045** | 0.0018 | 0.0039 | 0.2691 | 0.0008 |
-| **Score Population Stability Index (PSI)** | **0.0030** | -- | -- | -- | -- |
+2. **Ingestion & Serving Layer (FastAPI on Render):**
+   - High-throughput asynchronous REST API built with FastAPI and Uvicorn.
+   - Sub-5ms fast-path decisioning with single-threaded BLAS/OMP thread safety.
+   - Cross-origin resource sharing (CORS) configured for smooth Vercel-to-Render communication.
 
-> **Honest Metric Progression & `day_index` Drift Removal:** In earlier iterations including the non-stationary `day_index` feature, held-out test PR-AUC was 0.5343 (with severe temporal feature drift: PSI = 11.51). Removing `day_index` completely eliminated this artificial temporal drift (bringing all feature PSIs $\le 0.10$), with the final calibrated test PR-AUC shifting honestly from 0.5343 to 0.5289.
+3. **Feature Engineering & Velocity Engine:**
+   - 456 features extracted using pre-allocated NumPy buffers for zero runtime allocation overhead.
+   - Real-time online card velocity store measuring burst transactions across 10-minute, 30-minute, 1-hour, and 24-hour windows.
 
-### 2. Cost Matrix & Optimal Decision Thresholds
-Decision policy boundaries are derived by optimizing total expected business cost under asymmetric financial penalties ($C_{\text{FP}} = \$10.00$ manual review cost, $C_{\text{FN}} = \text{Transaction Amount}$ chargeback loss):
+4. **Machine Learning Inference Pipeline:**
+   - **Champion Classifier:** LightGBM gradient boosted decision tree (500 estimators, 101 leaves, learning rate 0.05).
+   - **Probability Calibration:** Isotonic regression mapper reducing Expected Calibration Error from 0.0123 to 0.0045.
+   - **Cost-Optimal Policy:** Dual operational thresholds ($t_{\text{review}} = 0.0496$, $t_{\text{block}} = 0.7534$) minimizing expected financial loss ($C_{\text{FP}} = \$10.00$, $C_{\text{FN}} = \text{TransactionAmt}$).
+   - **Explainability:** Native TreeSHAP algorithm calculating exact Shapley values and top negative contribution codes.
 
-| Policy Action | Threshold Range | Operational Impact & Characteristics |
-|---|---|---|
-| **APPROVE** | Score $< 0.0496$ | Fraud probability negligible; zero manual review friction. |
-| **MANUAL REVIEW** | $0.0496 \le \text{Score} < 0.7534$ | Optimal review threshold ($t_{\text{review}} = 0.0496$) minimizing business financial loss. |
-| **BLOCK** | Score $\ge 0.7534$ | High-precision automated block threshold ($t_{\text{block}} = 0.7534$) achieving $\ge 90\%$ precision. |
-
-### 3. Load Test Benchmarks (Real Measured Latencies)
-
-> *Note: Benchmark numbers are sustained runs (at least 20 seconds or 1000 requests per profile, repeated 3 times; median reported) with 50 untimed warmup requests before each profile. Both the load generator (`httpx` async client) and the Uvicorn server ran concurrently on the same local test machine (12 CPU cores, Python 3.12.3).*
-
-#### 4 Uvicorn Workers (`--workers 4`):
-| Profile | Concurrency | Explain | Throughput | p50 Latency | p95 Latency | p99 Latency | Error Rate | Client-Limited |
-|---|---|---|---|---|---|---|---|---|
-| **Single Score (no SHAP)** | 1 | False | 64.0 req/s | 14.97 ms | 17.92 ms | -- | **0.0%** | False (60.8%) |
-| **Single Score (with SHAP)** | 1 | True | 9.9 req/s | 87.90 ms | 152.73 ms | -- | **0.0%** | False (13.2%) |
-| **Concurrency Load (c=5)** | 5 | False | 130.8 req/s | 16.93 ms | 24.64 ms | 52.97 ms | **0.0%** | False (63.6%) |
-| **Concurrency Load (c=5, SHAP)** | 5 | True | 31.9 req/s | 119.10 ms | 172.27 ms | -- | **0.0%** | False (12.6%) |
-| **Concurrency Load (c=10)** | 10 | False | 203.7 req/s | 26.60 ms | 62.34 ms | 142.72 ms | **0.0%** | False (68.8%) |
-| **Concurrency Load (c=10, SHAP)**| 10 | True | 59.6 req/s | 121.66 ms | 188.66 ms | -- | **0.0%** | False (17.8%) |
-| **Concurrency Load (c=25)** | 25 | False | 210.8 req/s | 87.14 ms | 183.58 ms | 241.74 ms | **0.0%** | **True (80.2%)** |
-| **Concurrency Load (c=25, SHAP)**| 25 | True | 102.1 req/s | 196.16 ms | 344.09 ms | -- | **0.0%** | False (26.1%) |
-| **Concurrency Load (c=50)** | 50 | False | 173.9 req/s | 131.44 ms | 948.51 ms | -- | **0.0%** | **True (85.7%)** |
-| **Concurrency Load (c=50, SHAP)**| 50 | True | 100.3 req/s | 379.23 ms | 773.65 ms | -- | **0.0%** | False (34.3%) |
-| **Stress Point (c=100)**     | 100 | False | 129.0 req/s | 354.67 ms | 2112.77 ms | -- | **0.0%** | **True (82.9%)** |
-| **Stress Point (c=100, SHAP)**| 100 | True | 77.3 req/s | 653.76 ms | 3297.12 ms | -- | **0.0%** | False (45.1%) |
-
----
-
-## 🚀 Deployment Instructions
-
-Repository URL: `https://github.com/AshokSingodia-Codes/fraud-scoring-service.git`
-
-### 1. Render Deployment (Backend API)
-- **Service Type:** Web Service
-- **Runtime:** `Docker` (using `./Dockerfile`)
-- **Config File:** `render.yaml`
-- **Health Check Path:** `/health`
-- **Environment Variables:**
-  - `ALLOWED_API_KEYS`: Set `ALLOWED_API_KEYS` in the Render dashboard; demo keys only work with `APP_ENV=dev`.
-
-### 2. Vercel Deployment (React + Vite Frontend)
-- **Root Directory:** `frontend`
-- **Framework Preset:** `Vite`
-- **Build Command:** `npm run build`
-- **Output Directory:** `dist`
-- **Environment Variables:**
-  - `VITE_API_URL`: Your live Render backend service URL (e.g. `https://fraud-scoring-api.onrender.com`)
-  - `VITE_API_KEY`: `demo-api-key-12345`
+5. **Persistence & Observability Plane:**
+   - **Audit Store:** Relational persistence with SQLAlchemy supporting Neon PostgreSQL or local SQLite fallback.
+   - **Telemetry:** Prometheus metrics exporter exposing request latency histograms, decision counters, and PSI drift gauges.
+   - **Continuous Shadow Validation:** Asynchronous execution of candidate models to compare score divergence before production promotion.
 
 ---
 
-## 🛠️ Local Development & Quickstart
+## 📊 Measured Model Performance & Business Impact
 
-### 1. Clone & Setup Repository
+All metrics are **empirically measured** on a strict chronological held-out test partition (88,581 transactions, 3,083 fraudulent, 3.48% prevalence):
+
+### 1. Classification & Discrimination Performance
+| Metric | Final Calibrated LightGBM | Logistic Regression Baseline | Dummy Baseline | Relative Gain |
+| :--- | :--- | :--- | :--- | :--- |
+| **ROC-AUC** | **0.9046** (95% CI: [0.8987, 0.9110]) | 0.8362 | 0.5000 | **+8.2% vs Logistic** |
+| **PR-AUC (Average Precision)** | **0.5289** (95% CI: [0.5236, 0.5582]) | 0.3806 | 0.0343 | **15.4x vs Baseline (+39% vs Logistic)** |
+| **Recall @ Precision = 50%** | **53.07%** | 33.83% | 0.03% | Intercepts majority of fraud at low false alert rate |
+| **Recall @ Precision = 80%** | **34.19%** | 16.96% | 0.00% | High-confidence automated declines |
+| **Recall @ Top 1% Alerts** | **25.56%** | 20.61% | 1.12% | 1 in 4 frauds flagged in the top 1% traffic |
+| **Recall @ Top 5% Alerts** | **58.55%** | 46.15% | 6.15% | Captures nearly 60% of all frauds in top 5% |
+| **Brier Score** | **0.0222** | 0.1255 | 0.0332 | Well-calibrated probabilities |
+| **Expected Calibration Error (ECE)** | **0.0045** | 0.2691 | 0.0008 | **63.4% reduction in calibration error** |
+
+### 2. Asymmetric Cost Matrix & Decision Policy
+Thresholds were optimized by minimizing expected financial loss ($C_{\text{FP}} = \$10.00$ human review overhead, $C_{\text{FN}} = \text{Transaction Amount}$ chargeback loss):
+
+$$\text{Expected Loss} = \sum_{\text{False Negatives}} \text{TransactionAmt} + \sum_{\text{False Positives}} \$10.00$$
+
+| Decision Tier | Threshold | Action & Characteristics | Business Outcome |
+| :--- | :--- | :--- | :--- |
+| **APPROVE** | Score $< 0.0496$ | Immediate automated pass; zero friction | Captures 89.16% of legitimate traffic with no disruption |
+| **MANUAL REVIEW** | $0.0496 \le \text{Score} < 0.7534$ | Enriched analyst queue (15.2% - 19.4% fraud rate, **5.6x base traffic rate**) | Intercepts **53.35%** of all fraud dollars ($250,555.41) |
+| **AUTOMATED BLOCK** | Score $\ge 0.7534$ | High-precision automated decline (Target precision $\ge 90\%$) | Declines **19.82%** of fraud dollars ($93,066.30) with <1.3% traffic block |
+| **COMBINED IMPACT** | — | Intercepts **72.49% of fraud transactions** and **73.17% of fraud dollars** ($343,621) | **$269,971.69 saved (57.49% net loss reduction)** |
+
+### 3. Real-Time Serving Benchmarks
+- **Fast-Path Latency (without SHAP)**: Server-side **p50: 1.40 ms**, **p95: 1.96 ms**; Client round-trip **p50: 3.59 ms**, **p95: 4.47 ms**.
+- **Explainability Path (with TreeSHAP)**: Server-side **p50: 22.44 ms**, **p95: 40.39 ms**; Client round-trip **p50: 24.15 ms**, **p95: 43.05 ms**.
+- **Reliability**: **0.0% error rate** under sustained load testing across 1, 2, and 4 worker configurations.
+
+---
+
+## 🚀 End-to-End Cloud Deployment Guide
+
+Follow this guide to deploy the backend on **Render** and the frontend on **Vercel** with full end-to-end communication.
+
+```mermaid
+flowchart LR
+    Vercel["Frontend (Vercel)<br/>https://fraud-app.vercel.app"] -->|HTTPS / JSON Requests| Render["Backend API (Render)<br/>https://fraud-api.onrender.com"]
+    Render -->|Read/Write| Postgres[("PostgreSQL / Neon")]
+    Render -->|Atomic ZSET| Redis[("Redis / Upstash")]
+```
+
+### Step 1: Deploy Backend to Render
+
+1. Log in to [Render](https://dashboard.render.com/) and click **New + > Web Service**.
+2. Connect your GitHub repository: `https://github.com/AshokSingodia-Codes/fraud-scoring-service`.
+3. Configure the service settings:
+   - **Name:** `fraud-scoring-api`
+   - **Environment:** `Python`
+   - **Region:** Choose the region closest to your users (e.g. `Oregon (US West)` or `Frankfurt (EU)`).
+   - **Branch:** `main`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn src.fraud.serving.app:app --host 0.0.0.0 --port $PORT --workers 2`
+   - **Health Check Path:** `/health`
+4. Set Environment Variables in Render:
+   - `APP_ENV`: `prod`
+   - `ANYIO_MAX_THREADS`: `40`
+   - `DATABASE_URL`: Your PostgreSQL connection string (e.g. from Render Postgres or [Neon](https://neon.tech/): `postgresql+psycopg://user:password@host/dbname`). If omitted, the service automatically uses local SQLite storage.
+   - `REDIS_URL`: *(Optional)* Redis URL (e.g. from [Upstash](https://upstash.com/)). If omitted, in-memory rate limiting and velocity storage activate automatically.
+5. Click **Create Web Service**.
+6. Once deployed, note your backend URL: e.g. `https://fraud-scoring-api.onrender.com`. Test it by opening:
+   ```bash
+   curl https://fraud-scoring-api.onrender.com/health
+   # Returns: {"status": "ok"}
+   ```
+
+### Step 2: Deploy Frontend to Vercel
+
+1. Log in to [Vercel](https://vercel.com/) and click **Add New... > Project**.
+2. Import the same GitHub repository: `AshokSingodia-Codes/fraud-scoring-service`.
+3. Configure the Vercel project:
+   - **Framework Preset:** `Vite`
+   - **Root Directory:** If deploying from the root of the repo, leave root directory as `./` (the root `vercel.json` and `package.json` will build and publish automatically). Alternatively, set Root Directory to `frontend`.
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+4. Add Environment Variables in Vercel:
+   - `VITE_API_URL`: Your live Render backend URL from Step 1 (e.g. `https://fraud-scoring-api.onrender.com`).
+5. Click **Deploy**.
+6. Vercel will build the React application and deploy it to a URL like `https://fraud-scoring-service.vercel.app`.
+
+### Step 3: Verify End-to-End Integration
+
+1. Open your Vercel deployment in your browser.
+2. The navbar status indicator in the top right will display a green indicator dot showing the backend is online.
+3. If you ever update the backend URL or want to test against a different server, click the **Settings (gear icon)** in the navbar:
+   - Enter your Render API URL.
+   - Click **Test Connection** to verify live liveness probing.
+   - Click **Save Settings** (persisted in browser `localStorage`).
+4. Navigate to **Single Check**, select a preset transaction (or enter custom transaction details), and click **Check Transaction**:
+   - The UI scores the transaction against your live Render backend, returning the decision badge, probability score, velocity counters, and interactive TreeSHAP feature contribution cards.
+5. Search the transaction under **Audit Log** (`Find by ID`) or browse **Saved** to inspect historical transaction records.
+
+---
+
+## 📡 API Reference & Endpoints
+
+All endpoints are open access for friction-free transaction inspection (no API keys, registration, or login required).
+
+### 1. Health & Probes
+- `GET /health` / `GET /healthz`: Liveness probe (`{"status": "ok"}`).
+- `GET /ready`: Readiness probe verifying champion model and feature builder state (`{"status": "ready", "model_version": "1.0.0"}`).
+- `GET /metrics`: Prometheus formatted metrics export.
+
+### 2. Model Telemetry & Drift Monitoring
+- `GET /v1/model/info`: Returns feature count, version, training date, and calibrated thresholds.
+- `GET /v1/model/drift`: Real-time streaming Population Stability Index (PSI) and health status (`HEALTHY`, `MODERATE_DRIFT`, `CRITICAL_DRIFT`).
+- `GET /v1/model/shadow`: Status and specification of Champion vs Challenger shadow model.
+
+### 3. Scoring Endpoints
+- `POST /v1/score?explain=true`: Real-time transaction scoring with SHAP feature explanations.
+  ```bash
+  curl -X POST "https://fraud-scoring-api.onrender.com/v1/score?explain=true" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "transaction_id": "tx_prod_001",
+      "TransactionDT": 86400,
+      "TransactionAmt": 350.00,
+      "ProductCD": "W",
+      "card1": 1000,
+      "card2": 555.0,
+      "addr1": 150.0,
+      "P_emaildomain": "gmail.com"
+    }'
+  ```
+- `POST /v1/score/batch?explain=false`: High-throughput batch scoring (up to 1,000 transactions per payload).
+
+### 4. Audit Log CRUD Endpoints
+- `GET /v1/predictions/{transaction_id}`: Retrieve latest audit log entry by ID.
+- `GET /v1/predictions?limit=50&offset=0&decision=review`: Paginated list of historical audit logs with filtering.
+- `POST /v1/predictions`: Manually insert an audit record.
+- `PATCH /v1/predictions/{transaction_id}`: Update review decisions and analyst notes.
+- `DELETE /v1/predictions/{transaction_id}`: Purge audit records by ID.
+
+---
+
+## 🛠️ Local Development Quickstart
+
 ```bash
+# 1. Clone repository
 git clone https://github.com/AshokSingodia-Codes/fraud-scoring-service.git
 cd fraud-scoring-service
-```
 
-### 2. Run Backend (FastAPI Python Service)
-```bash
-# Setup virtual environment
+# 2. Setup Python environment
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt -r requirements-dev.txt
 
-# Run pytest suite
+# 3. Run all unit and integration tests
 .venv/Scripts/pytest tests/
 
-# Start FastAPI server on localhost:8000
+# 4. Start backend server (defaults to localhost:8000 with local SQLite audit DB)
 .venv/Scripts/uvicorn src.fraud.serving.app:app --host 127.0.0.1 --port 8000
-```
 
-### 3. Run Frontend (React + Vite App)
-```bash
+# 5. Start React frontend
 cd frontend
 npm install
 npm run dev -- --host 127.0.0.1 --port 3000
 ```
-Open **`http://localhost:3000`** to access the React dashboard.
-
-### 4. Option: Docker Compose (Full Stack)
-```bash
-docker compose up --build -d
-```
-Starts API (`localhost:8000`), Postgres (`localhost:5432`), Redis (`localhost:6379`), Prometheus (`localhost:9090`), and Grafana (`localhost:3000`).
+Open **`http://localhost:3000`** in your browser.
 
 ---
 
-## ⚠️ Known Limitations
+## 💼 Resume / CV Project Presentation
 
-1. **Feature Transformation, Fast Path & Measured Latencies:** Single-request scoring leverages an optimized fast path with preallocated NumPy row buffers (`transform_dict_to_numpy`), cached booster feature names, single-threaded OpenMP evaluation (`num_threads=1`), and direct margin sigmoid derivation skipping redundant predict passes. In our multi-process sustained benchmarks (**single laptop, loopback, 4 workers**; only quoting profiles with `client_limited=False` from `reports/load_test_workers_4.json`):
-   - At **concurrency 1** (`client_limited=False`): measured HTTP latencies are **9.46 ms p50 / 14.23 ms p95** (without SHAP, 96.5 req/s) versus **53.22 ms p50 / 82.23 ms p95** (with SHAP, 17.7 req/s).
-   - At **concurrency 5** (`explain=false`, `client_limited=False`): throughput reaches **209.5 req/s** (15.03 ms p50 / 32.99 ms p95); with SHAP (`client_limited=False`), throughput reaches **41.8 req/s** (91.75 ms p50 / 120.81 ms p95).
-   - At **concurrency 10** (`explain=true`, `client_limited=False`): throughput sustains **44.9 req/s** (168.26 ms p50 / 381.16 ms p95).
-   - At **concurrency 25** (`explain=true`, `client_limited=False`): throughput achieves **34.6 req/s** (629.60 ms p50 / 1383.97 ms p95).
-2. **Concurrency Degradation & Client-Side CPU Saturation:** Across high-throughput profiles without SHAP (e.g., concurrency 10, 25, 50, and 100), client load processes saturate core CPU (>70% utilization) on the local host and are flagged as `client_limited=True`. Systematic ablation testing across AnyIO thread limits (40 vs 80 vs 200) and worker counts (**single laptop, loopback, 4 workers**) revealed that server-side architectural variations remained within baseline noise spread and drift, with raising `ANYIO_MAX_THREADS` showing **no measured effect**. Consequently, only benchmark rows with `client_limited=False` are quoted as valid server performance indicators.
-3. **Per-Worker In-Memory Rate Limiting Fallback:** When Redis is not configured (`REDIS_URL` unset), rate limiting falls back to an in-memory sliding window (`InMemorySlidingWindow`). Because Uvicorn workers run as independent OS processes, each worker maintains its own in-memory dictionary. In multi-worker deployments, a centralized Redis instance running `RedisSlidingWindow` is required to ensure unified rate limit enforcement across all worker processes.
-4. **Wildcard CORS Policy:** The FastAPI backend currently enables `allow_origins=["*"]` to ensure straightforward local interoperability between local Vite dev hosts and multi-origin cloud deployments. In enterprise environments, this should be scoped to a strict white-list of trusted origins.
-5. **Local-Only Compose Credentials:** Passwords in `docker-compose.yml` (`POSTGRES_PASSWORD=postgres`, etc.) are designed strictly for out-of-the-box local developer ergonomics. In production deployments, these must be injected via secure secret management services.
-6. **Browser-Only Saved Reports:** Audit reports saved from the frontend dashboard persist in client-side browser `localStorage`. Historical persistence on the backend is maintained in the `/v1/predictions/{transaction_id}` relational audit database rather than a user-synced cloud workspace.
-7. **BackgroundTasks Audit Logging Durability:** Audit database writes are deferred outside the scoring request-response critical path using FastAPI's in-process `BackgroundTasks` (`background_tasks.add_task(log_prediction_to_db, res)`). While this reduces audit write overhead to sub-millisecond levels (~0.04 ms), task execution occurs in-memory within the Uvicorn worker process. If a worker process crashes, is abruptly killed, or the container restarts before the background task completes its database transaction, that prediction log entry may be dropped. In high-reliability production banking environments, this should be backed by a persistent durable distributed queue (e.g. Apache Kafka, AWS SQS, or RabbitMQ) or write-ahead logging (WAL).
+### Machine Learning / MLOps Engineer Bullet Points
 
+> **Real-Time Fraud Detection & Decision Engine** | *Python, FastAPI, LightGBM, Scikit-learn, Redis, PostgreSQL, Prometheus, Docker, React 19*
+> - Architected and deployed an enterprise-grade real-time fraud scoring microservice processing payment transactions with **sub-5ms fast-path p95 latency** (<45ms with full SHAP explanations) and **0.0% error rate** under load testing.
+> - Engineered 456 numerical, interaction, frequency, and sliding-window online card velocity features trained on 590K+ IEEE-CIS transactions using a strict **leakage-free 70/15/15 chronological split**.
+> - Optimized gradient boosted trees (LightGBM) achieving **0.9046 ROC-AUC** and **0.5289 PR-AUC** on held-out test data (a 15.4x improvement over baseline), calibrating probabilities via Isotonic Regression to reduce Expected Calibration Error (ECE) by **63.4%** (to 0.0045).
+> - Designed an asymmetric cost-optimization decision matrix establishing dual thresholds (`t_review` = 0.0496, `t_block` = 0.7534) that intercepted **73.17% of fraudulent dollars** ($343,621) and achieved a **57.49% direct chargeback loss reduction** ($269,972 net savings).
+> - Built native TreeSHAP reason code extraction, an online sliding-window velocity store, streaming PSI data drift detection, champion/challenger shadow routing, and a full RESTful audit logging system with Prometheus metrics and a React 19 analytics dashboard.
 
----
-
-## 📡 API Usage Examples
-
-### 1. Health & Real-Time Drift Status
-```bash
-# Health check
-curl -X GET "http://localhost:8000/health"
-
-# Real-time feature drift and Population Stability Index (PSI) summary
-curl -X GET "http://localhost:8000/v1/model/drift" \
-  -H "X-API-Key: demo-api-key-12345"
-```
-
-### 2. Score Transaction with Dynamic Velocity Features
-```bash
-curl -X POST "http://localhost:8000/v1/score?explain=true" \
-  -H "X-API-Key: demo-api-key-12345" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transaction_id": "tx_demo_101",
-    "TransactionDT": 86400,
-    "TransactionAmt": 150.00,
-    "ProductCD": "W",
-    "card1": 1000,
-    "P_emaildomain": "gmail.com"
-  }'
-```
-*Returns calibrated `fraud_probability`, cost-optimal `decision`, top-5 per-prediction SHAP `reasons`, and streaming `velocity_features` (`card1_tx_cnt_10m`, `card1_amt_sum_10m`, etc.).*
+### 1-Line Resume Hook:
+> *Built an end-to-end real-time fraud scoring service (LightGBM, Isotonic calibration, cost-optimized decisioning) serving predictions at sub-5ms p95 latency, intercepting 73.17% of fraudulent transaction dollars and reducing financial chargeback loss by 57.49%.*
 
 ---
 
-## 💼 Staff / Senior ML Engineering Resume Bullets
-
-> **Real-Time Fraud ML Platform & Streaming Feature Store (Production MLE)**:
-> *"Architected an end-to-end, sub-15ms fraud scoring platform on 590k IEEE-CIS transactions (LightGBM, isotonic probability calibration, cost-optimal decision policies, per-prediction SHAP reason codes) achieving 0.905 ROC-AUC and 0.529 PR-AUC on temporal out-of-time splits; engineered a streaming Redis velocity feature store (atomic `ZSET` pipelines for 10m/1h/24h sliding aggregations) and a real-time drift detection engine exporting streaming PSI to Prometheus & Grafana; containerized with Docker Compose with 0.0% error rate under load."*
-
-> **Zero-Downtime Model Deployment & Canary Governance**:
-> *"Implemented an asynchronous Champion-Challenger shadow evaluation pipeline routing live production traffic copies to candidate models without degrading client P99 latency; monitored score divergence (`fraud_shadow_score_divergence`) and distribution shifts in Prometheus before automated model promotion."*
-
-
+## 📜 License
+This project is licensed under the Apache 2.0 License. See [LICENSE](LICENSE) for details.

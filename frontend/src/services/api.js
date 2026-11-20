@@ -1,39 +1,34 @@
 import axios from 'axios';
 
-// Storage keys for user-configured API endpoints and credentials
+// Storage key for user-configured API endpoint
 const STORAGE_KEY_API_URL = 'fraud_api_base_url';
-const STORAGE_KEY_API_KEY = 'fraud_api_key';
 
 export function getApiSettings() {
   const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  const envKey = import.meta.env.VITE_API_KEY || 'demo-api-key-12345';
-
   const storedUrl = localStorage.getItem(STORAGE_KEY_API_URL);
-  const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY);
+
+  const rawUrl = storedUrl && storedUrl.trim() !== '' ? storedUrl.trim() : envUrl;
+  const cleanUrl = rawUrl.replace(/\/+$/, '');
 
   return {
-    apiUrl: storedUrl && storedUrl.trim() !== '' ? storedUrl.trim() : envUrl,
-    apiKey: storedKey && storedKey.trim() !== '' ? storedKey.trim() : envKey,
+    apiUrl: cleanUrl,
   };
 }
 
-export function saveApiSettings(apiUrl, apiKey) {
+export function saveApiSettings(apiUrl) {
   if (apiUrl) localStorage.setItem(STORAGE_KEY_API_URL, apiUrl.trim());
-  if (apiKey) localStorage.setItem(STORAGE_KEY_API_KEY, apiKey.trim());
 }
 
 export function resetApiSettings() {
   localStorage.removeItem(STORAGE_KEY_API_URL);
-  localStorage.removeItem(STORAGE_KEY_API_KEY);
 }
 
 function createClient() {
-  const { apiUrl, apiKey } = getApiSettings();
+  const { apiUrl } = getApiSettings();
   return axios.create({
     baseURL: apiUrl,
     headers: {
       'Content-Type': 'application/json',
-      'X-API-Key': apiKey,
     },
     timeout: 30000,
   });
@@ -97,12 +92,15 @@ export async function getPredictionById(transactionId) {
 }
 
 /**
- * Fetch model specifications and operational thresholds
+ * List historical predictions with pagination and filters
  */
-export async function getModelInfo() {
+export async function listPredictions(limit = 50, offset = 0, decision = null, riskBand = null) {
   const client = createClient();
   try {
-    const res = await client.get('/v1/model/info');
+    const params = { limit, offset };
+    if (decision && decision !== 'all') params.decision = decision;
+    if (riskBand && riskBand !== 'all') params.risk_band = riskBand;
+    const res = await client.get('/v1/predictions', { params });
     return res.data;
   } catch (err) {
     throw parseApiError(err);
@@ -110,12 +108,12 @@ export async function getModelInfo() {
 }
 
 /**
- * Fetch real-time drift metrics and model health
+ * Update a prediction audit record (e.g. notes or decision status)
  */
-export async function getModelDrift() {
+export async function updatePredictionById(transactionId, updateData) {
   const client = createClient();
   try {
-    const res = await client.get('/v1/model/drift');
+    const res = await client.patch(`/v1/predictions/${encodeURIComponent(transactionId)}`, updateData);
     return res.data;
   } catch (err) {
     throw parseApiError(err);
@@ -123,19 +121,17 @@ export async function getModelDrift() {
 }
 
 /**
- * Fetch Champion vs Challenger shadow deployment telemetry
+ * Delete a prediction audit record
  */
-export async function getShadowModelStatus() {
+export async function deletePredictionById(transactionId) {
   const client = createClient();
   try {
-    const res = await client.get('/v1/model/shadow');
+    const res = await client.delete(`/v1/predictions/${encodeURIComponent(transactionId)}`);
     return res.data;
   } catch (err) {
     throw parseApiError(err);
   }
 }
-
-
 
 /**
  * Formats API errors into helpful plain English
@@ -145,12 +141,6 @@ function parseApiError(err) {
     const status = err.response.status;
     const detail = err.response.data?.detail;
 
-    if (status === 401) {
-      return new Error("Access key missing. Please open 'Settings' and enter your API Key.");
-    }
-    if (status === 403) {
-      return new Error("Invalid API key. Please check your API key in 'Settings' and try again.");
-    }
     if (status === 404) {
       return new Error("No record found with this Transaction ID in the database.");
     }

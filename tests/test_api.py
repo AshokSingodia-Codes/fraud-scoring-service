@@ -29,14 +29,16 @@ def test_anyio_thread_limiter_size(monkeypatch):
 
 
 
-def test_auth_failure():
-    # Missing API key
-    res1 = client.post("/v1/score", json={})
-    assert res1.status_code == 401
-
-    # Invalid API key
-    res2 = client.post("/v1/score", headers={"X-API-Key": "invalid-key"}, json={})
-    assert res2.status_code == 403
+def test_auth_not_required():
+    # Calling endpoint without API key should succeed without 401/403
+    payload = {
+        "transaction_id": "tx_no_auth_123",
+        "TransactionDT": 86400,
+        "TransactionAmt": 100.0,
+    }
+    res = client.post("/v1/score", json=payload)
+    assert res.status_code == 200
+    assert res.json()["transaction_id"] == "tx_no_auth_123"
 
 
 def test_auth_env_scenarios(monkeypatch):

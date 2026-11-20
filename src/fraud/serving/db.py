@@ -9,7 +9,9 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL_POOLED") or os.getenv("DATABASE_URL") or "sqlite:///./predictions.db"
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 engine = create_engine(
     DATABASE_URL,
@@ -41,11 +43,39 @@ class PredictionLog(Base):
     risk_band = Column(String)
     model_version = Column(String)
     latency_ms = Column(Float)
+    notes = Column(String, nullable=True)
 
 
 def init_db() -> None:
     """Initialize database tables within application lifespan."""
     Base.metadata.create_all(bind=engine)
+    # Ensure backward-compatible column migration for SQLite
+    try:
+        with engine.connect() as conn:
+            if engine.dialect.name == "sqlite":
+                res = conn.exec_driver_sql("PRAGMA table_info(prediction_logs);").fetchall()
+                col_names = [r[1] for r in res]
+                if "notes" not in col_names:
+                    conn.exec_driver_sql("ALTER TABLE prediction_logs ADD COLUMN notes VARCHAR;")
+                    conn.commit()
+    except Exception as e:
+        logger.warning("Optional schema migration note: %s", e)
+
+
+def get_db():
+    """FastAPI dependency yielding a scoped database session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# Ensure tables and migrations are initialized on module load
+try:
+    init_db()
+except Exception as _e:
+    pass
 
 
 _db_lock = threading.Lock()

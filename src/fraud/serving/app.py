@@ -18,9 +18,10 @@ from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlalchemy.orm import Session
 from src.fraud.evaluation.streaming_drift import get_drift_monitor
 from src.fraud.serving.auth import get_api_key
-from src.fraud.serving.db import PredictionLog, SessionLocal, init_db, log_prediction_to_db
+from src.fraud.serving.db import PredictionLog, get_db, init_db, log_prediction_to_db
 from src.fraud.serving.metrics import (
     DECISION_COUNT,
     FEATURE_PSI,
@@ -37,6 +38,10 @@ from src.fraud.serving.schemas import (
     BatchScoreRequest,
     BatchScoreResponse,
     ModelInfoResponse,
+    PredictionCreateRequest,
+    PredictionListResponse,
+    PredictionRecordResponse,
+    PredictionUpdateRequest,
     ScoreResponse,
     Transaction,
 )
@@ -122,6 +127,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -337,23 +343,159 @@ def score_batch_transactions(
     )
 
 
-@app.get("/v1/predictions/{transaction_id}", tags=["Audit Log"])
-def get_prediction_by_id(transaction_id: str, api_key: str = Depends(get_api_key)):
-    """Retrieve historical prediction log from database by transaction_id."""
-    db = SessionLocal()
-    try:
-        entry = db.query(PredictionLog).filter(PredictionLog.transaction_id == transaction_id).first()
-        if not entry:
-            raise HTTPException(status_code=404, detail="Prediction ID not found.")
+@app.get("/v1/predictions", response_model=PredictionListResponse, tags=["Audit Log"])
+def list_predictions(
+    limit: int = 50,
+    offset: int = 0,
+    decision: str | None = None,
+    risk_band: str | None = None,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
+    """Query historical prediction logs with optional filtering and pagination."""
+    query = db.query(PredictionLog)
+    if decision:
+        query = query.filter(PredictionLog.decision == decision)
+    if risk_band:
+        query = query.filter(PredictionLog.risk_band == risk_band)
 
-        return {
-            "transaction_id": entry.transaction_id,
-            "timestamp": entry.timestamp,
-            "fraud_probability": entry.fraud_probability,
-            "decision": entry.decision,
-            "risk_band": entry.risk_band,
-            "model_version": entry.model_version,
-            "latency_ms": entry.latency_ms,
-        }
-    finally:
-        db.close()
+    total = query.count()
+    entries = query.order_by(PredictionLog.id.desc()).offset(offset).limit(limit).all()
+
+    return PredictionListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=[
+            PredictionRecordResponse(
+                transaction_id=e.transaction_id,
+                timestamp=e.timestamp,
+                fraud_probability=e.fraud_probability,
+                decision=e.decision,
+                risk_band=e.risk_band,
+                model_version=e.model_version,
+                latency_ms=e.latency_ms,
+                notes=getattr(e, "notes", None),
+            )
+            for e in entries
+        ],
+    )
+
+
+@app.post("/v1/predictions", response_model=PredictionRecordResponse, status_code=status.HTTP_201_CREATED, tags=["Audit Log"])
+def create_prediction_log(
+    req: PredictionCreateRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
+    """Directly insert a prediction audit log record."""
+    entry = PredictionLog(
+        transaction_id=req.transaction_id,
+        timestamp=time.time(),
+        fraud_probability=req.fraud_probability,
+        decision=req.decision,
+        risk_band=req.risk_band,
+        model_version=req.model_version,
+        latency_ms=req.latency_ms,
+        notes=req.notes,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return PredictionRecordResponse(
+        transaction_id=entry.transaction_id,
+        timestamp=entry.timestamp,
+        fraud_probability=entry.fraud_probability,
+        decision=entry.decision,
+        risk_band=entry.risk_band,
+        model_version=entry.model_version,
+        latency_ms=entry.latency_ms,
+        notes=getattr(entry, "notes", None),
+    )
+
+
+@app.get("/v1/predictions/{transaction_id}", response_model=PredictionRecordResponse, tags=["Audit Log"])
+def get_prediction_by_id(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
+    """Retrieve latest historical prediction log from database by transaction_id."""
+    entry = (
+        db.query(PredictionLog)
+        .filter(PredictionLog.transaction_id == transaction_id)
+        .order_by(PredictionLog.id.desc())
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="Prediction ID not found.")
+
+    return PredictionRecordResponse(
+        transaction_id=entry.transaction_id,
+        timestamp=entry.timestamp,
+        fraud_probability=entry.fraud_probability,
+        decision=entry.decision,
+        risk_band=entry.risk_band,
+        model_version=entry.model_version,
+        latency_ms=entry.latency_ms,
+        notes=getattr(entry, "notes", None),
+    )
+
+
+@app.patch("/v1/predictions/{transaction_id}", response_model=PredictionRecordResponse, tags=["Audit Log"])
+def update_prediction_by_id(
+    transaction_id: str,
+    req: PredictionUpdateRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
+    """Update an existing prediction log (decision override, notes)."""
+    entry = (
+        db.query(PredictionLog)
+        .filter(PredictionLog.transaction_id == transaction_id)
+        .order_by(PredictionLog.id.desc())
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="Prediction ID not found.")
+
+    if req.decision is not None:
+        entry.decision = req.decision
+    if req.notes is not None:
+        entry.notes = req.notes
+
+    db.commit()
+    db.refresh(entry)
+    return PredictionRecordResponse(
+        transaction_id=entry.transaction_id,
+        timestamp=entry.timestamp,
+        fraud_probability=entry.fraud_probability,
+        decision=entry.decision,
+        risk_band=entry.risk_band,
+        model_version=entry.model_version,
+        latency_ms=entry.latency_ms,
+        notes=getattr(entry, "notes", None),
+    )
+
+
+@app.delete("/v1/predictions/{transaction_id}", tags=["Audit Log"])
+def delete_prediction_by_id(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
+    """Delete all prediction audit records matching transaction_id."""
+    entries = db.query(PredictionLog).filter(PredictionLog.transaction_id == transaction_id).all()
+    if not entries:
+        raise HTTPException(status_code=404, detail="Prediction ID not found.")
+
+    deleted_count = len(entries)
+    for e in entries:
+        db.delete(e)
+    db.commit()
+
+    return {
+        "status": "deleted",
+        "transaction_id": transaction_id,
+        "records_deleted": deleted_count,
+    }

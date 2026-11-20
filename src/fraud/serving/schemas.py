@@ -76,3 +76,44 @@ class ModelInfoResponse(BaseModel):
     thresholds: dict[str, float]
     num_features: int
     headline_metrics: dict[str, Any]
+
+
+class PredictionRecordResponse(BaseModel):
+    """Prediction audit log record schema."""
+
+    transaction_id: str
+    timestamp: float
+    fraud_probability: float
+    decision: str
+    risk_band: str
+    model_version: str
+    latency_ms: float
+    notes: str | None = None
+
+
+class PredictionListResponse(BaseModel):
+    """Paginated list of prediction audit log records."""
+
+    total: int
+    limit: int
+    offset: int
+    items: list[PredictionRecordResponse]
+
+
+class PredictionCreateRequest(BaseModel):
+    """Request payload for manual audit record creation."""
+
+    transaction_id: str = Field(..., description="Unique transaction ID")
+    fraud_probability: float = Field(..., ge=0.0, le=1.0, description="Fraud probability score")
+    decision: str = Field(..., description="Decision: approve, review, or block")
+    risk_band: str = Field("Medium", description="Risk band: Low, Medium, or High")
+    model_version: str = Field("1.0.0", description="Model version string")
+    latency_ms: float = Field(0.0, ge=0.0, description="Execution latency in ms")
+    notes: str | None = Field(None, description="Optional analyst notes")
+
+
+class PredictionUpdateRequest(BaseModel):
+    """Request payload for updating an audit record."""
+
+    decision: str | None = Field(None, description="Updated decision: approve, review, or block")
+    notes: str | None = Field(None, description="Updated analyst notes")
